@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeoJStudyLens AI - Concise Study Notes Generator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="h-full bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300 flex flex-col">
+
+    <!-- Header Navbar -->
+    <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
+                    <i class="fa-solid fa-graduation-cap text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-tight">LeoJStudyLens AI</h1>
+                    <div class="inline-flex items-center gap-1.5 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        <i class="fa-solid fa-globe text-[10px]"></i> www.leojstudylens.ai
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <!-- Theme Toggle Button -->
+                <button id="themeToggle" type="button" class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer" aria-label="Toggle Theme">
+                    <i id="themeIcon" class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
+        
+        <!-- Left Column: Input Panel (Span 6) -->
+        <section class="lg:col-span-6 flex flex-col bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-file-lines text-emerald-500"></i>
+                    <h2 class="font-semibold text-sm uppercase tracking-wider text-slate-600 dark:text-slate-300">Source Content</h2>
+                </div>
+                <div class="text-xs text-slate-400 dark:text-slate-500 flex items-center space-x-3">
+                    <span id="statsCount">0 words • 0 chars • 0 min read</span>
+                    <button id="clearInputBtn" type="button" class="text-rose-500 hover:text-rose-600 font-medium transition-colors cursor-pointer">Clear</button>
+                </div>
+            </div>
+
+            <!-- Textarea for Input -->
+            <div class="flex-1 p-4 flex flex-col">
+                <textarea id="sourceText" placeholder="Paste your long lecture notes, textbook chapter, or research article here..." class="w-full flex-1 resize-none bg-transparent border-0 focus:ring-0 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base leading-relaxed focus:outline-none"></textarea>
+            </div>
+
+            <!-- Controls Footer -->
+            <div class="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                <div>
+                    <label for="formatSelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Study Format</label>
+                    <select id="formatSelect" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="bullets">Bullet Points (Concise)</option>
+                        <option value="definitions">Key Definitions & Terms</option>
+                        <option value="summary">TL;DR Summary Paragraph</option>
+                        <option value="exam">Exam Q&A Flashcards</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="concisenessLevel" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Conciseness Level</label>
+                    <select id="concisenessLevel" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="ultra">Ultra-short</option>
+                        <option value="balanced" selected>Balanced</option>
+                        <option value="comprehensive">Comprehensive</option>
+                    </select>
+                </div>
+                <div class="sm:col-span-2 pt-2">
+                    <button id="generateBtn" type="button" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all transform active:scale-95 cursor-pointer">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Generate Concise Study Notes</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Output Panel (Span 6) -->
+        <section class="lg:col-span-6 flex flex-col bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden relative">
+            <div class="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-bolt text-amber-500"></i>
+                    <h2 class="font-semibold text-sm uppercase tracking-wider text-slate-600 dark:text-slate-300">Concise Study Notes</h2>
+                </div>
+                <div id="outputActions" class="flex items-center space-x-2 opacity-50 pointer-events-none transition-opacity">
+                    <button id="copyBtn" type="button" title="Copy to Clipboard" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                    <button id="downloadTxtBtn" type="button" title="Download as .txt" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors text-xs font-bold cursor-pointer">
+                        .TXT
+                    </button>
+                    <button id="downloadHtmlBtn" type="button" title="Download as .html" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors text-xs font-bold cursor-pointer">
+                        .HTML
+                    </button>
+                </div>
+            </div>
+
+            <!-- Output Display Box -->
+            <div class="flex-1 p-6 overflow-y-auto relative flex flex-col">
+                <!-- Empty State -->
+                <div id="emptyState" class="m-auto text-center py-12 px-4">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-slate-700/50 text-emerald-500 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">
+                        <i class="fa-solid fa-lightbulb"></i>
+                    </div>
+                    <h3 class="font-medium text-slate-700 dark:text-slate-200 mb-1">Ready for condensation</h3>
+                    <p class="text-sm text-slate-400 dark:text-slate-500 max-w-xs mx-auto">Paste your source text on the left, pick a format, and hit generate to instantly narrow it down.</p>
+                </div>
+
+                <!-- Loading State -->
+                <div id="loadingState" class="hidden m-auto text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-emerald-500 border-t-transparent mb-4"></div>
+                    <p class="text-sm font-medium text-slate-600 dark:text-slate-300 animate-pulse">Synthesizing & extracting core knowledge...</p>
+                </div>
+
+                <!-- Result Container -->
+                <div id="resultContent" class="hidden space-y-4 text-sm sm:text-base leading-relaxed text-slate-700 dark:text-slate-200"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 text-sm font-medium">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMsg">Copied to clipboard!</span>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM Elements
+            const sourceText = document.getElementById('sourceText');
+            const statsCount = document.getElementById('statsCount');
+            const clearInputBtn = document.getElementById('clearInputBtn');
+            const formatSelect = document.getElementById('formatSelect');
+            const concisenessLevel = document.getElementById('concisenessLevel');
+            const generateBtn = document.getElementById('generateBtn');
+            const emptyState = document.getElementById('emptyState');
+            const loadingState = document.getElementById('loadingState');
+            const resultContent = document.getElementById('resultContent');
+            const outputActions = document.getElementById('outputActions');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadTxtBtn = document.getElementById('downloadTxtBtn');
+            const downloadHtmlBtn = document.getElementById('downloadHtmlBtn');
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = document.getElementById('themeIcon');
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+
+            // Theme management initialization
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                themeIcon.className = "fa-solid fa-sun";
+            } else {
+                document.documentElement.classList.remove('dark');
+                themeIcon.className = "fa-solid fa-moon";
+            }
+
+            // Theme Toggle Event Listener
+            themeToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.theme = 'light';
+                    themeIcon.className = "fa-solid fa-moon";
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.theme = 'dark';
+                    themeIcon.className = "fa-solid fa-sun";
+                }
+            });
+
+            // Live Stats Calculator
+            function updateStats() {
+                const text = sourceText.value;
+                const charCount = text.length;
+                const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+                const readingTime = Math.ceil(words / 200); // avg 200 wpm
+                statsCount.textContent = `${words.toLocaleString()} words • ${charCount.toLocaleString()} chars • ~${readingTime} min read`;
+            }
+
+            sourceText.addEventListener('input', updateStats);
+
+            // Clear Workspace Event Listener
+            clearInputBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                sourceText.value = '';
+                updateStats();
+                sourceText.focus();
+                showToast("Workspace cleared.");
+            });
+
+            // Toast Notification Helper
+            function showToast(message) {
+                toastMsg.textContent = message;
+                toast.classList.remove('translate-y-20', 'opacity-0');
+                setTimeout(() => {
+                    toast.classList.add('translate-y-20', 'opacity-0');
+                }, 3000);
+            }
+
+            // Advanced Client-Side Note Parser
+            function processNotes(text, format, level) {
+                const paragraphs = text.split(/\n+/).filter(p => p.trim().length > 0);
+                let sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+                sentences = sentences.map(s => s.trim()).filter(s => s.length > 8);
+
+                let countMultiplier = 5;
+                if (level === 'ultra') countMultiplier = 3;
+                if (level === 'comprehensive') countMultiplier = 10;
+
+                const words = text.split(/\s+/);
+                const capitalizedPhrases = [];
+                for (let i = 0; i < words.length - 1; i++) {
+                    if (words[i][0] && words[i][0] === words[i][0].toUpperCase() && words[i].length > 3 && /^[A-Z]/.test(words[i])) {
+                        capitalizedPhrases.push(words[i].replace(/[^a-zA-Z]/g, ''));
+                    }
+                }
+                const uniqueKeywords = [...new Set(capitalizedPhrases)];
+
+                let htmlOutput = '';
+                let rawTextOutput = '';
+
+                if (format === 'bullets') {
+                    const highlights = sentences.slice(0, Math.min(countMultiplier * 2, Math.max(3, Math.floor(sentences.length / 2))));
+                    htmlOutput += `<h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-2 uppercase tracking-wide text-xs">Core Bullet Summary (${level.toUpperCase()})</h4>`;
+                    htmlOutput += `<ul class="space-y-2 pl-4 list-disc marker:text-emerald-500">`;
+                    rawTextOutput += `CORE BULLET SUMMARY (${level.toUpperCase()}):\n`;
+                    highlights.forEach(s => {
+                        htmlOutput += `<li>${s}</li>`;
+                        rawTextOutput += `- ${s}\n`;
+                    });
+                    htmlOutput += `</ul>`;
+                } else if (format === 'definitions') {
+                    htmlOutput += `<h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-3 uppercase tracking-wide text-xs">Key Definitions & Concepts</h4>`;
+                    htmlOutput += `<div class="grid gap-3">`;
+                    rawTextOutput += `KEY DEFINITIONS & CONCEPTS:\n`;
+                    
+                    const termsToUse = uniqueKeywords.length > 0 ? uniqueKeywords : ['Primary Subject', 'Core Principle', 'Key Variable', 'Mechanism'];
+                    termsToUse.slice(0, countMultiplier + 2).forEach((term, idx) => {
+                        const relatedSentence = sentences[idx % sentences.length] || 'Essential concept identified within the source material.';
+                        htmlOutput += `
+                            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                                <span class="font-semibold text-emerald-600 dark:text-emerald-400 block mb-1">${term}</span>
+                                <span class="text-slate-600 dark:text-slate-300 text-sm">${relatedSentence}</span>
+                            </div>
+                        `;
+                        rawTextOutput += `• ${term}: ${relatedSentence}\n`;
+                    });
+                    htmlOutput += `</div>`;
+                } else if (format === 'summary') {
+                    const paraCount = level === 'ultra' ? 1 : (level === 'comprehensive' ? 4 : 2);
+                    const summaryParagraphs = paragraphs.slice(0, paraCount).join(' ');
+                    htmlOutput += `<h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-2 uppercase tracking-wide text-xs">TL;DR Summary Paragraph</h4>`;
+                    htmlOutput += `<p class="leading-relaxed text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">${summaryParagraphs || text.substring(0, 400)}</p>`;
+                    rawTextOutput += `TL;DR SUMMARY:\n${summaryParagraphs || text.substring(0, 400)}`;
+                } else if (format === 'exam') {
+                    htmlOutput += `<h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-3 uppercase tracking-wide text-xs">Exam Q&A Flashcards</h4>`;
+                    htmlOutput += `<div class="space-y-3">`;
+                    rawTextOutput += `EXAM Q&A FLASHCARDS:\n`;
+                    
+                    const sampleQuestions = [
+                        { q: "What is the primary objective or focus discussed?", a: sentences[0] || "Core premise of the text." },
+                        { q: "What key mechanism or factor drives this concept?", a: sentences[1] || "Supporting structural detail." },
+                        { q: "What crucial implication or relationship is highlighted?", a: sentences[2] || "Secondary analytical point." },
+                        { q: "What conclusion or takeaway should be remembered?", a: sentences[sentences.length - 1] || "Final summary point." }
+                    ];
+
+                    sampleQuestions.slice(0, countMultiplier).forEach((item, idx) => {
+                        htmlOutput += `
+                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-2">
+                                <div class="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
+                                    <span class="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-xs">Q${idx+1}</span>
+                                    <span>${item.q}</span>
+                                </div>
+                                <p class="text-slate-600 dark:text-slate-300 text-sm pl-8"><strong>Answer:</strong> ${item.a}</p>
+                            </div>
+                        `;
+                        rawTextOutput += `Q${idx+1}: ${item.q}\nA: ${item.a}\n\n`;
+                    });
+                    htmlOutput += `</div>`;
+                }
+
+                return { htmlOutput, rawTextOutput };
+            }
+
+            // Generate Button Action
+            let lastGeneratedText = '';
+            let lastHtmlOutput = '';
+
+            generateBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const text = sourceText.value.trim();
+                if (!text) {
+                    showToast("Please enter or paste some text first!");
+                    sourceText.focus();
+                    return;
+                }
+
+                emptyState.classList.add('hidden');
+                resultContent.classList.add('hidden');
+                loadingState.classList.remove('hidden');
+                outputActions.classList.add('opacity-50', 'pointer-events-none');
+
+                setTimeout(() => {
+                    const format = formatSelect.value;
+                    const level = concisenessLevel.value;
+                    const res = processNotes(text, format, level);
+                    lastGeneratedText = res.rawTextOutput;
+                    lastHtmlOutput = res.htmlOutput;
+
+                    loadingState.classList.add('hidden');
+                    resultContent.innerHTML = res.htmlOutput;
+                    resultContent.classList.remove('hidden');
+                    outputActions.classList.remove('opacity-50', 'pointer-events-none');
+                    showToast("Study notes generated successfully!");
+                }, 400);
+            });
+
+            // Copy to Clipboard Action
+            copyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!lastGeneratedText) return;
+                
+                const textarea = document.createElement('textarea');
+                textarea.value = lastGeneratedText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast("Notes copied to clipboard!");
+                } catch (err) {
+                    showToast("Failed to copy notes.");
+                }
+                document.body.removeChild(textarea);
+            });
+
+            // Download .TXT Action
+            downloadTxtBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!lastGeneratedText) return;
+                
+                const blob = new Blob([lastGeneratedText], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `LeoJStudyLens_${formatSelect.value}_${new Date().toISOString().slice(0,10)}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast("Downloaded as .txt file!");
+            });
+
+            // Download .HTML Action
+            downloadHtmlBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!lastHtmlOutput) return;
+
+                const fullHtmlDoc = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LeoJStudyLens Notes - ${formatSelect.value.toUpperCase()}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800 p-8 max-w-3xl mx-auto">
+    <h2 class="text-2xl font-bold text-emerald-600 mb-1">LeoJStudyLens AI Generated Notes</h2>
+    <p class="text-xs text-emerald-700 font-mono mb-6">www.leojstudylens.ai</p>
+    <div class="space-y-4">${lastHtmlOutput}</div>
+</body>
+</html>`;
+
+                const blob = new Blob([fullHtmlDoc], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `LeoJStudyLens_${formatSelect.value}_${new Date().toISOString().slice(0,10)}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast("Downloaded as .html file!");
+            });
+        });
+    </script>
+</body>
+</html>
