@@ -142,7 +142,7 @@
         <div class="text-sm text-slate-600">Synthesizing key ideas…</div>
       </div>
 
-      <div id="resultContent" class="hidden mt-6 space-y-4 text-slate-700 dark:text-slate-200"></div>
+      <div id="resultContent" class="hidden mt-6 space-y-4 text-slate-700 dark:text-slate-200"><!-- streaming output appears here --></div>
     </section>
   </main>
 
@@ -270,96 +270,6 @@
       function loadChatHistory() { try { return JSON.parse(localStorage.getItem('openai_chat_history')||'[]'); } catch(e){ return []; } }
       function saveChatHistory(h){ localStorage.setItem('openai_chat_history', JSON.stringify(h||[])); }
 
-      function escapeHtml(input) { return String(input).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;'); }
+      function escapeHtml(input) { return String(input).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-      function renderChat(){ const history = loadChatHistory(); chatPane.innerHTML=''; history.forEach(m => { const el = document.createElement('div'); el.className = m.role==='user' ? 'mb-3 text-sm text-slate-700 dark:text-slate-200' : 'mb-3 text-sm text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-900 p-3 rounded-2xl'; el.innerHTML = `<div class="font-mono text-[10px] uppercase tracking-[0.15em] text-slate-400 mb-1">${m.role}</div><div class="whitespace-pre-wrap">${escapeHtml(m.content)}</div>`; chatPane.appendChild(el); }); chatPane.scrollTop = chatPane.scrollHeight; }
-
-      function appendToChat(role, content){ const history = loadChatHistory(); history.push({role,content}); saveChatHistory(history); renderChat(); }
-
-      clearChatBtn.addEventListener('click', () => { if(confirm('Clear chat history?')){ saveChatHistory([]); renderChat(); } });
-      openChatBtn.addEventListener('click', () => { chatModal.classList.remove('hidden'); chatModal.classList.add('flex'); renderChat(); });
-      closeChatBtn.addEventListener('click', () => { chatModal.classList.add('hidden'); chatModal.classList.remove('flex'); });
-
-      /* --- Server proxy helper --- */
-      async function openAIRequest(payload){
-        const response = await fetch('/api/openai', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-        if(!response.ok){ const t = await response.text(); throw new Error(`Server request failed (${response.status}): ${t}`); }
-        return await response.json();
-      }
-
-      /* --- Summarization flow --- */
-      async function callOpenAIForNotes(text, format, level){
-        // prefer serverless proxy; fallback to local key if proxy fails
-        try{
-          const resp = await openAIRequest({ mode:'summarize', source:text, format, level, model:'gpt-4o-mini' });
-          const content = resp?.content||'';
-          const htmlStart = content.indexOf('===HTML_START===');
-          const htmlEnd = content.indexOf('===HTML_END===');
-          const textStart = content.indexOf('===TEXT_START===');
-          const textEnd = content.indexOf('===TEXT_END===');
-          let htmlOut='', txtOut='';
-          if(htmlStart!==-1 && htmlEnd!==-1) htmlOut = content.slice(htmlStart+'===HTML_START==='.length, htmlEnd).trim();
-          if(textStart!==-1 && textEnd!==-1) txtOut = content.slice(textStart+'===TEXT_START==='.length, textEnd).trim();
-          if(!htmlOut && !txtOut){ txtOut = content.trim(); htmlOut = `<pre class="whitespace-pre-wrap bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">${escapeHtml(content)}</pre>`; }
-          return { htmlOutput: htmlOut, rawTextOutput: txtOut };
-        } catch(err){
-          const apiKey = getStoredApiKey();
-          if(!apiKey) throw err;
-          const r = await fetch('https://api.openai.com/v1/chat/completions', {
-            method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-            body: JSON.stringify({ model:'gpt-4o-mini', messages:[ {role:'system', content:'You are a study assistant. Return exactly: ===HTML_START=== [html] ===HTML_END=== ===TEXT_START=== [text] ===TEXT_END==='}, {role:'user', content:`FORMAT: ${format}\nCONCISENESS: ${level}\n\nSOURCE:\n${text}` } ], temperature:0.2, max_tokens:1200 })
-          });
-          if(!r.ok){ const t = await r.text(); throw new Error(`OpenAI fallback failed (${r.status}): ${t}`); }
-          const data = await r.json(); const content = data.choices?.[0]?.message?.content||'';
-          return { htmlOutput:`<pre class="whitespace-pre-wrap bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">${escapeHtml(content)}</pre>`, rawTextOutput:content };
-        }
-      }
-
-      /* --- Core generation and UI handlers --- */
-      let lastGeneratedText=''; let lastHtmlOutput='';
-      generateBtn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const text = sourceText.value.trim();
-        if(!text){ showToast('Please paste some text first'); sourceText.focus(); return; }
-        emptyState.classList.add('hidden'); resultContent.classList.add('hidden'); loadingState.classList.remove('hidden'); outputActions.classList.add('opacity-50','pointer-events-none');
-        try{
-          const format = formatSelect.value; const level = concisenessLevel.value;
-          if(aiToggle.checked){ const res = await callOpenAIForNotes(text, format, level); lastGeneratedText = res.rawTextOutput || res.htmlOutput.replace(/<[^>]+>/g,''); lastHtmlOutput = res.htmlOutput || `<pre>${escapeHtml(lastGeneratedText)}</pre>`; }
-          else { const res = processNotes(text, format, level); lastGeneratedText = res.rawTextOutput; lastHtmlOutput = res.htmlOutput; }
-          loadingState.classList.add('hidden'); resultContent.innerHTML = lastHtmlOutput; resultContent.classList.remove('hidden'); outputActions.classList.remove('opacity-50','pointer-events-none'); showToast('Notes ready!');
-        } catch(err){ loadingState.classList.add('hidden'); showToast(err.message||'Failed to generate notes'); }
-      });
-
-      /* copy / downloads */
-      copyBtn.addEventListener('click', (e) => { e.preventDefault(); if(!lastGeneratedText) return; navigator.clipboard.writeText(lastGeneratedText).then(()=>showToast('Copied!')).catch(()=>showToast('Copy failed')); });
-      downloadTxtBtn.addEventListener('click', (e) => { e.preventDefault(); if(!lastGeneratedText) return; const blob=new Blob([lastGeneratedText],{type:'text/plain'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`LeoJStudyLens_${formatSelect.value}_${new Date().toISOString().slice(0,10)}.txt`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); showToast('Downloaded .txt'); });
-      downloadHtmlBtn.addEventListener('click', (e) => { e.preventDefault(); if(!lastHtmlOutput) return; const doc=`<!doctype html><html><head><meta charset='utf-8'><title>Notes</title><link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap' rel='stylesheet'><style>body{font-family:Inter,sans-serif;padding:24px}</style></head><body><h1>LeoJStudyLens Notes</h1>${lastHtmlOutput}</body></html>`; const blob=new Blob([doc],{type:'text/html'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`LeoJStudyLens_${formatSelect.value}_${new Date().toISOString().slice(0,10)}.html`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); showToast('Downloaded .html'); });
-
-      /* --- Chat send --- */
-      async function sendChatMessage(){ const text = chatInput.value.trim(); if(!text) return; appendToChat('user', text); chatInput.value=''; const apiKey = getStoredApiKey(); if(!apiKey){ appendToChat('assistant','No API key set. Click Set API Key'); return; } appendToChat('assistant','…thinking…'); try{ const messages=[]; messages.push({role:'system',content:'You are a helpful assistant. Keep answers concise.'}); if(includeNotes.checked && sourceText.value.trim()) messages.push({role:'user', content:'CONTEXT START:\n'+sourceText.value.trim()+'\nCONTEXT END.'}); messages.push({role:'user', content:text}); const payload = { mode:'chat', model:chatModel.value||'gpt-4o-mini', messages, temperature:0.3, max_tokens:800 }; const serverResp = await openAIRequest(payload); const content = serverResp?.content || 'No response.'; appendToChat('assistant', content); } catch(err){ appendToChat('assistant', `Error: ${err.message}`); } }
-      sendChatBtn.addEventListener('click', sendChatMessage);
-      chatInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChatMessage(); } });
-
-      /* --- lightweight client summarizer fallback (keeps previous behavior) --- */
-      function processNotes(text, format, level){
-        const paragraphs = text.split(/\n+/).filter(p=>p.trim().length>0);
-        let sentences = text.match(/[^.!?]+[.!?]+/g) || [text]; sentences = sentences.map(s=>s.trim()).filter(s=>s.length>8);
-        let countMultiplier = 5; if(level==='ultra') countMultiplier=3; if(level==='comprehensive') countMultiplier=10;
-        const words = text.split(/\s+/);
-        const capitalizedPhrases = [];
-        for(let i=0;i<words.length-1;i++){ if(words[i][0] && words[i][0]===words[i][0].toUpperCase() && words[i].length>3 && /^[A-Z]/.test(words[i])) capitalizedPhrases.push(words[i].replace(/[^a-zA-Z]/g,'')); }
-        const uniqueKeywords = [...new Set(capitalizedPhrases)];
-        let htmlOutput=''; let rawTextOutput='';
-        if(format==='bullets'){ const highlights=sentences.slice(0,Math.min(countMultiplier*2,Math.max(3,Math.floor(sentences.length/2)))); htmlOutput+=`<h4 class="font-semibold text-indigo-600 dark:text-indigo-300">Core Bullet Summary</h4><ul class="pl-4 list-disc space-y-2">`; rawTextOutput+=`CORE BULLET SUMMARY:\n`; highlights.forEach(s=>{ htmlOutput+=`<li>${s}</li>`; rawTextOutput+=`- ${s}\n`; }); htmlOutput+=`</ul>`; }
-        else if(format==='definitions'){ htmlOutput+=`<h4 class="font-semibold text-indigo-600 dark:text-indigo-300">Key Definitions</h4><div class="grid gap-3">`; rawTextOutput+=`KEY DEFINITIONS:\n`; const terms = uniqueKeywords.length?uniqueKeywords:['Primary Subject','Core Principle','Key Variable']; terms.slice(0,countMultiplier+2).forEach((t,idx)=>{ const rs=sentences[idx%sentences.length]||'Essential concept.'; htmlOutput+=`<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border"> <strong class="text-indigo-600">${t}</strong><div class="text-sm text-slate-600 dark:text-slate-300 mt-1">${rs}</div></div>`; rawTextOutput+=`• ${t}: ${rs}\n`; }); htmlOutput+=`</div>`; }
-        else if(format==='summary'){ const paraCount = level==='ultra'?1:(level==='comprehensive'?4:2); const summaryParagraphs = paragraphs.slice(0,paraCount).join(' '); htmlOutput+=`<h4 class="font-semibold text-indigo-600">TL;DR</h4><p class="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl">${summaryParagraphs||text.substring(0,400)}</p>`; rawTextOutput+=`TL;DR:\n${summaryParagraphs||text.substring(0,400)}`; }
-        else if(format==='exam'){ htmlOutput+=`<h4 class="font-semibold text-indigo-600">Flashcards</h4><div class="space-y-3">`; rawTextOutput+=`FLASHCARDS:\n`; const sample=[{q:'Primary focus?',a:sentences[0]||'Core premise.'},{q:'Key mechanism?',a:sentences[1]||'Supporting detail.'},{q:'Main implication?',a:sentences[2]||'Secondary point.'},{q:'Takeaway?',a:sentences[sentences.length-1]||'Final point.'}]; sample.slice(0,countMultiplier).forEach((it,idx)=>{ htmlOutput+=`<div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border"><div class="font-semibold text-indigo-600">Q${idx+1}: ${it.q}</div><div class="text-sm mt-2">A: ${it.a}</div></div>`; rawTextOutput+=`Q${idx+1}: ${it.q}\nA: ${it.a}\n\n`; }); htmlOutput+=`</div>`; }
-        return { htmlOutput, rawTextOutput };
-      }
-
-      /* initial render */
-      renderChat();
-    });
-  </script>
-</body>
-</html>
+      function renderChat(){ const history = loadChatHistory(); chatPane.innerHTML=''; history.forEach(m => { const el = document.createElement('div'); el.className = m.role==='user' ? 'mb-3 text-...
