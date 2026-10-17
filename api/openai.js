@@ -11,10 +11,10 @@ export default async function handler(req, res) {
   const body = req.body || {};
   const mode = body.mode || 'chat';
   const model = body.model || 'gpt-4o-mini';
+  const shouldStream = body.stream !== false && (body.stream === true || body.streaming === true || mode === 'chat' || mode === 'summarize');
 
   try {
-    // Non-streaming fallback (keeps previous behavior)
-    let payload = { model, temperature: 0.2, max_tokens: 1200 };
+    let payload = { model, temperature: 0.2, max_tokens: 1200, stream: shouldStream };
 
     if (mode === 'summarize') {
       const source = body.source || '';
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
         {
           role: 'system',
           content:
-            'You are a study assistant. Turn the source content into concise study notes. Return exactly the structure below, no extra commentary. ===HTML_START=== [valid HTML fragment] ===HTML_END=== ===TEXT_START=== [plain text notes] ===TEXT_END==='
+            'You are a study assistant. Turn the source content into concise study notes. Return exactly the structure below, no extra commentary. ===HTML_START=== [valid HTML fragment] ===HTML_END=== ===TEXT_START=== [plain text notes] ===TEXT_END===' 
         },
         {
           role: 'user',
@@ -39,7 +39,6 @@ export default async function handler(req, res) {
       payload.temperature = body.temperature || 0.3;
     }
 
-    // Preferred: non-streaming quick response when client calls this route.
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -49,13 +48,31 @@ export default async function handler(req, res) {
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      const message = data?.error?.message || 'OpenAI request failed';
-      return res.status(response.status).json({ error: message });
+      const errText = await response.text();
+      return res.status(response.status).json({ error: errText || 'OpenAI request failed' });
     }
 
+    if (shouldStream && response.body) {
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        res.write(chunk);
+      }
+
+      res.end();
+      return;
+    }
+
+    const data = await response.json();
     const content = data?.choices?.[0]?.message?.content || '';
     return res.status(200).json({ ok: true, content });
   } catch (error) {
