@@ -349,22 +349,46 @@
         return msgs;
       }
 
-      async function directOpenAIRequest(payload, streaming = false) {
-        const apiKey = getStoredApiKey();
-        if (!apiKey) throw new Error('No API key set.');
+      function buildOpenAIRequestPayload(payload) {
+        if (payload.mode === 'summarize') {
+          const source = String(payload.source || '').slice(0, 15000);
+          return {
+            model: payload.model || 'gpt-4o-mini',
+            temperature: payload.temperature ?? 0.2,
+            max_tokens: payload.max_tokens ?? 1200,
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a study assistant. Turn source content into concise study notes. Return exactly the structure below, no extra commentary: ===HTML_START=== [valid HTML fragment] ===HTML_END=== ===TEXT_START=== [plain text notes] ===TEXT_END==='.trim()
+              },
+              {
+                role: 'user',
+                content: `FORMAT: ${payload.format || 'bullets'}\nCONCISENESS: ${payload.level || 'balanced'}\n\nSOURCE:\n${source}`
+              }
+            ]
+          };
+        }
 
-        const headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+        return {
+          model: payload.model || 'gpt-4o-mini',
+          temperature: payload.temperature ?? 0.3,
+          max_tokens: payload.max_tokens ?? 800,
+          messages: Array.isArray(payload.messages) ? payload.messages : [{ role: 'user', content: payload.prompt || payload.source || '' }]
         };
+      }
 
+      async function directOpenAIRequest(payload) {
+        const apiKey = getStoredApiKey();
+        if (!apiKey) throw new Error('No API key stored. Paste your OpenAI key first.');
+
+        const requestBody = buildOpenAIRequestPayload(payload);
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
-          headers,
-          body: JSON.stringify({
-            ...payload,
-            stream: streaming
-          })
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -372,50 +396,7 @@
           throw new Error(text || `OpenAI error ${response.status}`);
         }
 
-        if (streaming) return response;
-        const data = await response.json();
-        return data;
-      }
-
-      async function callOpenAIForNotes(text, format, level) {
-        const apiKey = getStoredApiKey();
-        const payload = {
-          model: 'gpt-4o-mini',
-          temperature: 0.2,
-          max_tokens: 1200,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a study assistant. Return only valid HTML and plain text in the exact format: ===HTML_START=== ... ===HTML_END=== ===TEXT_START=== ... ===TEXT_END==='.trim()
-            },
-            {
-              role: 'user',
-              content: `FORMAT: ${format}\nCONCISENESS: ${level}\n\nSOURCE:\n${text.slice(0, 15000)}`
-            }
-          ]
-        };
-
-        try {
-          const response = await fetch('/api/openai', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: 'summarize', model: 'gpt-4o-mini', source: text.slice(0, 15000), format, level, stream: false })
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            const content = data?.content || '';
-            return parseOpenAIOutput(content);
-          }
-        } catch (e) {
-          // silent fallback to direct call below
-        }
-
-        if (!apiKey) throw new Error('No API key set for serverless request.');
-
-        const data = await directOpenAIRequest(payload, false);
-        const content = data?.choices?.[0]?.message?.content || '';
-        return parseOpenAIOutput(content);
+        return await response.json();
       }
 
       function parseOpenAIOutput(content) {
@@ -442,90 +423,30 @@
         return { htmlOutput: htmlOut, rawTextOutput: txtOut };
       }
 
+      async function callOpenAIForNotes(text, format, level) {
+        const data = await directOpenAIRequest({
+          mode: 'summarize',
+          model: 'gpt-4o-mini',
+          source: text.slice(0, 15000),
+          format,
+          level,
+          temperature: 0.2,
+          max_tokens: 1200
+        });
+
+        const content = data?.choices?.[0]?.message?.content || '';
+        return parseOpenAIOutput(content);
+      }
+
       async function streamFromProxy(payload, onToken, onDone, onError) {
         try {
-          const apiKey = getStoredApiKey();
-          let response;
+          const data = await directOpenAIRequest(payload);
+          const text = data?.choices?.[0]?.message?.content || '';
 
-          try {
-            response = await fetch('/api/openai', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...payload, stream: true })
-            });
-          } catch (err) {
-            response = null;
-          }
-
-          if (!response || !response.ok) {
-            if (!apiKey) {
-              throw new Error('No API key stored for direct OpenAI fallback.');
-            }
-            response = await directOpenAIRequest({
-              model: payload.model || 'gpt-4o-mini',
-              messages: payload.messages || [{ role: 'user', content: payload.source || '' }],
-              temperature: 0.3,
-              stream: true,
-              max_tokens: payload.max_tokens || 800
-            }, true);
-          }
-
-          if (response.body == null) {
-            throw new Error('No response stream available.');
-          }
-
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-
-            const parts = buffer.split('\n\n');
-            buffer = parts.pop();
-
-            for (const part of parts) {
-              const lines = part.split(/\n/).map(l => l.trim()).filter(Boolean);
-              for (const line of lines) {
-                if (!line.startsWith('data:')) continue;
-                const payloadLine = line.replace(/^data:\s*/, '');
-                if (payloadLine === '[DONE]') {
-                  if (onDone) onDone();
-                  return;
-                }
-                try {
-                  const parsed = JSON.parse(payloadLine);
-                  const delta = parsed.choices?.[0]?.delta?.content;
-                  if (delta) onToken(delta);
-                  else {
-                    const text = parsed.choices?.[0]?.text || '';
-                    if (text) onToken(text);
-                  }
-                } catch (e) {
-                  onToken(payloadLine);
-                }
-              }
-            }
-          }
-
-          if (buffer) {
-            const lines = buffer.split(/\n/).map(l => l.trim()).filter(Boolean);
-            for (const line of lines) {
-              if (!line.startsWith('data:')) continue;
-              const payloadLine = line.replace(/^data:\s*/, '');
-              if (payloadLine === '[DONE]') {
-                if (onDone) onDone();
-                return;
-              }
-              try {
-                const parsed = JSON.parse(payloadLine);
-                const delta = parsed.choices?.[0]?.delta?.content;
-                if (delta) onToken(delta);
-              } catch (e) {
-                onToken(payloadLine);
-              }
+          if (text) {
+            const chunks = text.match(/.{1,30}/g) || [text];
+            for (const chunk of chunks) {
+              onToken(chunk);
             }
           }
 
@@ -691,9 +612,7 @@
               transientWrapper.remove();
               showToast('Chat stream error: ' + (err?.message || err));
               try {
-                const apiKey = getStoredApiKey();
-                if (!apiKey) throw new Error('No API key stored.');
-                const data = await directOpenAIRequest({ model: chatModel.value || 'gpt-4o-mini', temperature: 0.3, max_tokens: 800, messages: msgs }, false);
+                const data = await directOpenAIRequest({ mode: 'chat', messages: msgs, model: chatModel.value || 'gpt-4o-mini', temperature: 0.3, max_tokens: 800 });
                 const content = data?.choices?.[0]?.message?.content || 'No response';
                 appendToChat('assistant', content);
               } catch (fbErr) {
@@ -705,9 +624,7 @@
           transientWrapper.remove();
           showToast('Streaming call failed: ' + (err?.message || err));
           try {
-            const apiKey = getStoredApiKey();
-            if (!apiKey) throw new Error('No API key stored.');
-            const data = await directOpenAIRequest({ model: chatModel.value || 'gpt-4o-mini', temperature: 0.3, max_tokens: 800, messages: msgs }, false);
+            const data = await directOpenAIRequest({ mode: 'chat', messages: msgs, model: chatModel.value || 'gpt-4o-mini', temperature: 0.3, max_tokens: 800 });
             const content = data?.choices?.[0]?.message?.content || 'No response';
             appendToChat('assistant', content);
           } catch (fbErr) {
