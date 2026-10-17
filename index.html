@@ -36,7 +36,7 @@
     .streaming-output { white-space: pre-wrap; word-break: break-word; font-family: inherit; }
     .streaming-token { display: inline-block; opacity: 0; transform: translateY(6px); transition: opacity 160ms ease, transform 200ms ease; }
     .streaming-token.show { opacity: 1; transform: translateY(0); }
-    .streaming-cursor { display: inline-block; width: 10px; height: 1em; background: currentColor; margin-left: 6px; vertical-align: text-bottom; border-radius: 2px; animation: blink 1s steps(2,st[...]
+    .streaming-cursor { display: inline-block; width: 10px; height: 1em; background: currentColor; margin-left: 6px; vertical-align: text-bottom; border-radius: 2px; animation: blink 1s steps(2,start) infinite; }
     @keyframes blink { 50% { opacity: 0; } }
 
     /* subtle fade for the result area */
@@ -63,7 +63,7 @@
       </div>
 
       <div class="flex items-center gap-3">
-        <button id="openChatBtn" title="Chat with AI" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white shadow-lg hover:scale-10[...]">
+        <button id="openChatBtn" title="Chat with AI" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white shadow-lg hover:scale-105">
           <i class="fa-solid fa-comments"></i>
           <span class="text-sm font-medium">Chat</span>
         </button>
@@ -90,7 +90,7 @@
         </div>
       </div>
 
-      <textarea id="sourceText" placeholder="Paste your content here..." class="mt-4 w-full min-h-[320px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-transparent focus:border-indig[...]"></textarea>
+      <textarea id="sourceText" placeholder="Paste your content here..." class="mt-4 w-full min-h-[320px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-transparent focus:border-indigo-300"></textarea>
 
       <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
         <div>
@@ -119,7 +119,7 @@
           <span class="text-sm">Use OpenAI</span>
         </label>
 
-        <button id="generateBtn" class="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white font-semibold shadow-2xl hover:brightness-1[...]">
+        <button id="generateBtn" class="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white font-semibold shadow-2xl hover:brightness-105">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
           <span>Generate Notes</span>
         </button>
@@ -188,7 +188,7 @@
   </div>
 
   <!-- Toast -->
-  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-xl [...]">
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-xl">
     <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
     <span id="toastMsg">Copied to clipboard!</span>
   </div>
@@ -285,7 +285,7 @@
 
       function renderChat(){ const history = loadChatHistory(); chatPane.innerHTML = ''; history.forEach((m) => {
         const el = document.createElement('div');
-        el.className = m.role === 'user' ? 'mb-3 text-sm text-slate-700 dark:text-slate-200 text-right' : 'mb-3 text-sm text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 p-3 rounde[...];
+        el.className = m.role === 'user' ? 'mb-3 text-sm text-slate-700 dark:text-slate-200 text-right' : 'mb-3 text-sm text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl';
         el.innerHTML = `<div class="font-mono text-xs text-slate-400 mb-1">${m.role.toUpperCase()}</div><div>${escapeHtml(m.content)}</div>`;
         chatPane.appendChild(el);
       });
@@ -314,6 +314,94 @@
         return msgs;
       }
 
+      // Direct streaming to OpenAI from the browser (fallback). Uses localStorage key — only used if proxy is unavailable.
+      async function directStreamFromOpenAI(apiKey, payload, onToken, onDone, onError) {
+        try {
+          const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (!resp.ok) {
+            const txt = await resp.text();
+            throw new Error(txt || `OpenAI error ${resp.status}`);
+          }
+
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            const parts = buffer.split('\n\n');
+            buffer = parts.pop();
+
+            for (const part of parts) {
+              const lines = part.split(/\n/).map(l => l.trim()).filter(Boolean);
+              for (const line of lines) {
+                if (!line.startsWith('data:')) continue;
+                const payloadLine = line.replace(/^data:\s*/, '');
+                if (payloadLine === '[DONE]') { if (onDone) onDone(); return; }
+                try {
+                  const parsed = JSON.parse(payloadLine);
+                  const delta = parsed.choices?.[0]?.delta?.content;
+                  if (delta) onToken(delta);
+                  else {
+                    const text = parsed.choices?.[0]?.text || '';
+                    if (text) onToken(text);
+                  }
+                } catch (e) {
+                  onToken(payloadLine);
+                }
+              }
+            }
+          }
+
+          if (buffer) {
+            const lines = buffer.split(/\n/).map(l => l.trim()).filter(Boolean);
+            for (const line of lines) {
+              if (!line.startsWith('data:')) continue;
+              const payloadLine = line.replace(/^data:\s*/, '');
+              if (payloadLine === '[DONE]') { if (onDone) onDone(); return; }
+              try {
+                const parsed = JSON.parse(payloadLine);
+                const delta = parsed.choices?.[0]?.delta?.content;
+                if (delta) onToken(delta);
+              } catch (e) { onToken(payloadLine); }
+            }
+          }
+
+          if (onDone) onDone();
+        } catch (err) {
+          if (onError) onError(err);
+          else throw err;
+        }
+      }
+
+      // Direct non-streaming call to OpenAI (fallback)
+      async function directOpenAICall(apiKey, payload) {
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || `OpenAI error ${resp.status}`);
+        }
+        return resp.json();
+      }
+
       async function streamFromProxy(payload, onToken, onDone, onError) {
         try {
           const resp = await fetch('/api/openai', {
@@ -323,8 +411,15 @@
           });
 
           if (!resp.ok) {
+            // If proxy isn't present (405) or returns an error, try direct browser call using stored API key.
+            const status = resp.status;
             const txt = await resp.text();
-            throw new Error(txt || `Server error ${resp.status}`);
+            const apiKey = getStoredApiKey();
+            if (apiKey) {
+              // Try direct streaming to OpenAI as a fallback
+              return await directStreamFromOpenAI(apiKey, payload, onToken, onDone, onError);
+            }
+            throw new Error(txt || `Server error ${status}`);
           }
 
           const reader = resp.body.getReader();
@@ -617,7 +712,7 @@
           const paraCount = level === 'ultra' ? 1 : (level === 'comprehensive' ? 4 : 2);
           const summaryParagraphs = paragraphs.slice(0, paraCount).join(' ');
           htmlOutput += `<h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-2 uppercase tracking-wide text-xs">TL;DR Summary Paragraph</h4>`;
-          htmlOutput += `<p class="leading-relaxed text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">${escapeHtml(summ[...]}...`;
+          htmlOutput += `<p class="leading-relaxed text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">${escapeHtml(summaryParagraphs || text.substring(0, 400))}</p>`;
           rawTextOutput += `TL;DR SUMMARY:\n${summaryParagraphs || text.substring(0, 400)}`;
         } else if (format === 'exam') {
           htmlOutput += `<h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-3 uppercase tracking-wide text-xs">Exam Q&A Flashcards</h4>`;
@@ -654,63 +749,83 @@
         let sourceTextToUse = text;
         if (sourceTextToUse.length > MAX_CHARS) sourceTextToUse = sourceTextToUse.slice(0, MAX_CHARS);
 
-        const systemPrompt = `You are a helpful assistant that converts source text into concise study notes. Return exactly this structure with no extra commentary:
-===HTML_START===
-[valid HTML fragment]
-===HTML_END===
-===TEXT_START===
-[plain text notes]
-===TEXT_END===`;
-        const userPrompt = `FORMAT: ${format}
-CONCISENESS: ${level}
-
-SOURCE:
-${sourceTextToUse}`;
-
         const apiKeyToUse = getStoredApiKey();
-        if (!apiKeyToUse) throw new Error('No API key set for serverless request.');
 
-        const response = await fetch('/api/openai', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode: 'summarize', model: 'gpt-4o-mini', source: sourceTextToUse, format, level })
-        });
+        // First try the serverless proxy if available
+        try {
+          const response = await fetch('/api/openai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: 'summarize', model: 'gpt-4o-mini', source: sourceTextToUse, format, level })
+          });
 
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`OpenAI API error: ${response.status} ${errText}`);
+          if (response.ok) {
+            const data = await response.json();
+            const content = data?.content || '';
+            const htmlStart = content.indexOf('===HTML_START===');
+            const htmlEnd = content.indexOf('===HTML_END===');
+            const textStart = content.indexOf('===TEXT_START===');
+            const textEnd = content.indexOf('===TEXT_END===');
+
+            let htmlOut = '';
+            let txtOut = '';
+
+            if (htmlStart !== -1 && htmlEnd !== -1) htmlOut = content.slice(htmlStart + '===HTML_START==='.length, htmlEnd).trim();
+            if (textStart !== -1 && textEnd !== -1) txtOut = content.slice(textStart + '===TEXT_START==='.length, textEnd).trim();
+
+            if (!htmlOut && !txtOut) {
+              txtOut = content.trim();
+              htmlOut = `<pre class="whitespace-pre-wrap bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">${escapeHtml(content)}</pre>`;
+            }
+
+            return { htmlOutput: htmlOut, rawTextOutput: txtOut };
+          } else {
+            // fallback to direct call when proxy not available
+            if (apiKeyToUse) {
+              const payload = { model: 'gpt-4o-mini', temperature: 0.2, max_tokens: 1200, messages: [
+                { role: 'system', content: 'You are a study assistant. Turn the source content into concise study notes. Return exactly the structure below, no extra commentary. ===HTML_START=== [valid HTML fragment] ===HTML_END=== ===TEXT_START=== [plain text notes] ===TEXT_END===' },
+                { role: 'user', content: `FORMAT: ${format}\nCONCISENESS: ${level}\n\nSOURCE:\n${sourceTextToUse}` }
+              ] };
+
+              const data = await directOpenAICall(apiKeyToUse, payload);
+              const content = data?.choices?.[0]?.message?.content || '';
+
+              const htmlStart = content.indexOf('===HTML_START===');
+              const htmlEnd = content.indexOf('===HTML_END===');
+              const textStart = content.indexOf('===TEXT_START===');
+              const textEnd = content.indexOf('===TEXT_END===');
+
+              let htmlOut = '';
+              let txtOut = '';
+
+              if (htmlStart !== -1 && htmlEnd !== -1) htmlOut = content.slice(htmlStart + '===HTML_START==='.length, htmlEnd).trim();
+              if (textStart !== -1 && textEnd !== -1) txtOut = content.slice(textStart + '===TEXT_START==='.length, textEnd).trim();
+
+              if (!htmlOut && !txtOut) {
+                txtOut = content.trim();
+                htmlOut = `<pre class="whitespace-pre-wrap bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">${escapeHtml(content)}</pre>`;
+              }
+
+              return { htmlOutput: htmlOut, rawTextOutput: txtOut };
+            }
+
+            const errText = await response.text();
+            throw new Error(`OpenAI API error: ${response.status} ${errText}`);
+          }
+        } catch (err) {
+          // If proxy and direct both fail, bubble up
+          throw err;
         }
-
-        const data = await response.json();
-        const content = data?.content || '';
-
-        const htmlStart = content.indexOf('===HTML_START===');
-        const htmlEnd = content.indexOf('===HTML_END===');
-        const textStart = content.indexOf('===TEXT_START===');
-        const textEnd = content.indexOf('===TEXT_END===');
-
-        let htmlOut = '';
-        let txtOut = '';
-
-        if (htmlStart !== -1 && htmlEnd !== -1) htmlOut = content.slice(htmlStart + '===HTML_START==='.length, htmlEnd).trim();
-        if (textStart !== -1 && textEnd !== -1) txtOut = content.slice(textStart + '===TEXT_START==='.length, textEnd).trim();
-
-        if (!htmlOut && !txtOut) {
-          txtOut = content.trim();
-          htmlOut = `<pre class="whitespace-pre-wrap bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">${escapeHtml(content)}</pre>`;
-        }
-
-        return { htmlOutput: htmlOut, rawTextOutput: txtOut };
       }
 
       // copy / download handlers
       copyBtn.addEventListener('click', (e) => {
-        e.preventDefault(); if (!lastGeneratedText) return; const ta = document.createElement('textarea'); ta.value = lastGeneratedText; document.body.appendChild(ta); ta.select(); try { document.exec[...] 
+        e.preventDefault(); if (!lastGeneratedText) return; const ta = document.createElement('textarea'); ta.value = lastGeneratedText; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); ta.remove(); showToast('Copied'); } catch(e){ showToast('Copy failed'); ta.remove(); }
       });
 
-      downloadTxtBtn.addEventListener('click', (e) => { e.preventDefault(); if (!lastGeneratedText) return; const blob = new Blob([lastGeneratedText], { type: 'text/plain;charset=utf-8' }); const[...] 
+      downloadTxtBtn.addEventListener('click', (e) => { e.preventDefault(); if (!lastGeneratedText) return; const blob = new Blob([lastGeneratedText], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'notes.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); });
 
-      downloadHtmlBtn.addEventListener('click', (e) => { e.preventDefault(); if (!lastHtmlOutput) return; const fullHtmlDoc = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<[...]`;
+      downloadHtmlBtn.addEventListener('click', (e) => { e.preventDefault(); if (!lastHtmlOutput) return; const fullHtmlDoc = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>Study Notes</title>\n</head>\n<body>${lastHtmlOutput}</body>\n</html>`; const blob = new Blob([fullHtmlDoc], { type: 'text/html;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'notes.html'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); });
 
       // initial render for chat
       renderChat();
