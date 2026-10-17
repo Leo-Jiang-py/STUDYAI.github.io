@@ -13,6 +13,7 @@ export default async function handler(req, res) {
   const model = body.model || 'gpt-4o-mini';
 
   try {
+    // Non-streaming fallback (keeps previous behavior)
     let payload = { model, temperature: 0.2, max_tokens: 1200 };
 
     if (mode === 'summarize') {
@@ -23,7 +24,9 @@ export default async function handler(req, res) {
       payload.messages = [
         {
           role: 'system',
-          content: 'You are a study assistant. Turn the source content into concise study notes. Return exactly the structure below, no extra commentary. ===HTML_START=== [valid HTML fragment] ===HTML_END=== ===TEXT_START=== [plain text notes] ===TEXT_END===' },
+          content:
+            'You are a study assistant. Turn the source content into concise study notes. Return exactly the structure below, no extra commentary. ===HTML_START=== [valid HTML fragment] ===HTML_END=== ===TEXT_START=== [plain text notes] ===TEXT_END==='
+        },
         {
           role: 'user',
           content: `FORMAT: ${format}\nCONCISENESS: ${level}\n\nSOURCE:\n${source}`
@@ -36,6 +39,7 @@ export default async function handler(req, res) {
       payload.temperature = body.temperature || 0.3;
     }
 
+    // Preferred: non-streaming quick response when client calls this route.
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
