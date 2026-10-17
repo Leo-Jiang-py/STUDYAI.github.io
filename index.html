@@ -31,6 +31,16 @@
     .blob { position: absolute; filter: blur(80px); opacity: 0.24; transform: translateZ(0); }
     .key-badge { font-size: 11px; padding: 6px 10px; border-radius: 9999px; }
     .glass { backdrop-filter: blur(8px); }
+
+    /* Streaming token animation and cursor */
+    .streaming-output { white-space: pre-wrap; word-break: break-word; font-family: inherit; }
+    .streaming-token { display: inline-block; opacity: 0; transform: translateY(6px); transition: opacity 160ms ease, transform 200ms ease; }
+    .streaming-token.show { opacity: 1; transform: translateY(0); }
+    .streaming-cursor { display: inline-block; width: 10px; height: 1em; background: currentColor; margin-left: 6px; vertical-align: text-bottom; border-radius: 2px; animation: blink 1s steps(2,start) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* subtle fade for the result area */
+    .result-fade { transition: opacity 220ms ease, transform 220ms ease; }
   </style>
 </head>
 <body class="h-full bg-gradient-to-br from-ai-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-black text-slate-800 dark:text-slate-100 flex flex-col">
@@ -142,7 +152,7 @@
         <div class="text-sm text-slate-600">Synthesizing key ideas…</div>
       </div>
 
-      <div id="resultContent" class="hidden mt-6 space-y-4 text-slate-700 dark:text-slate-200"><!-- streaming output appears here --></div>
+      <div id="resultContent" class="hidden mt-6 space-y-4 text-slate-700 dark:text-slate-200 result-fade"><!-- streaming output appears here --></div>
     </section>
   </main>
 
@@ -270,6 +280,418 @@
       function loadChatHistory() { try { return JSON.parse(localStorage.getItem('openai_chat_history')||'[]'); } catch(e){ return []; } }
       function saveChatHistory(h){ localStorage.setItem('openai_chat_history', JSON.stringify(h||[])); }
 
+      /* small helper used by rendering to show messages */
       function escapeHtml(input) { return String(input).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-      function renderChat(){ const history = loadChatHistory(); chatPane.innerHTML=''; history.forEach(m => { const el = document.createElement('div'); el.className = m.role==='user' ? 'mb-3 text-...
+      function renderChat(){ const history = loadChatHistory(); chatPane.innerHTML = ''; history.forEach((m) => {
+        const el = document.createElement('div');
+        el.className = m.role === 'user' ? 'mb-3 text-sm text-slate-700 dark:text-slate-200 text-right' : 'mb-3 text-sm text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl';
+        el.innerHTML = `<div class="font-mono text-xs text-slate-400 mb-1">${m.role.toUpperCase()}</div><div>${escapeHtml(m.content)}</div>`;
+        chatPane.appendChild(el);
+      });
+      chatPane.scrollTop = chatPane.scrollHeight; }
+
+      function appendToChat(role, content) {
+        const history = loadChatHistory();
+        history.push({ role, content });
+        saveChatHistory(history);
+        renderChat();
+      }
+
+      clearChatBtn.addEventListener('click', () => { if (confirm('Clear chat history?')) { saveChatHistory([]); renderChat(); } });
+
+      openChatBtn.addEventListener('click', () => { chatModal.classList.remove('hidden'); renderChat(); });
+      closeChatBtn.addEventListener('click', () => { chatModal.classList.add('hidden'); });
+
+      // --- Streaming helpers ---
+      function buildMessages(userText) {
+        const systemPrompt = 'You are a helpful study assistant. Keep answers concise and focused for study purposes.';
+        const msgs = [{ role: 'system', content: systemPrompt }];
+        if (includeNotes && includeNotes.checked && sourceText.value.trim()) {
+          msgs.push({ role: 'user', content: 'CONTEXT START:\n' + sourceText.value.trim() + '\nCONTEXT END.' });
+        }
+        msgs.push({ role: 'user', content: userText });
+        return msgs;
+      }
+
+      async function streamFromProxy(payload, onToken, onDone, onError) {
+        try {
+          const resp = await fetch('/api/openai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          if (!resp.ok) {
+            const txt = await resp.text();
+            throw new Error(txt || `Server error ${resp.status}`);
+          }
+
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            const parts = buffer.split('\n\n');
+            buffer = parts.pop();
+
+            for (const part of parts) {
+              const lines = part.split(/\n/).map(l => l.trim()).filter(Boolean);
+              for (const line of lines) {
+                if (!line.startsWith('data:')) continue;
+                const payloadLine = line.replace(/^data:\s*/, '');
+                if (payloadLine === '[DONE]') { if (onDone) onDone(); return; }
+                try {
+                  const parsed = JSON.parse(payloadLine);
+                  const delta = parsed.choices?.[0]?.delta?.content;
+                  if (delta) onToken(delta);
+                  else {
+                    const text = parsed.choices?.[0]?.text || '';
+                    if (text) onToken(text);
+                  }
+                } catch (e) {
+                  onToken(payloadLine);
+                }
+              }
+            }
+          }
+
+          if (buffer) {
+            const lines = buffer.split(/\n/).map(l => l.trim()).filter(Boolean);
+            for (const line of lines) {
+              if (!line.startsWith('data:')) continue;
+              const payloadLine = line.replace(/^data:\s*/, '');
+              if (payloadLine === '[DONE]') { if (onDone) onDone(); return; }
+              try {
+                const parsed = JSON.parse(payloadLine);
+                const delta = parsed.choices?.[0]?.delta?.content;
+                if (delta) onToken(delta);
+              } catch (e) { onToken(payloadLine); }
+            }
+          }
+
+          if (onDone) onDone();
+        } catch (err) {
+          if (onError) onError(err);
+          else throw err;
+        }
+      }
+
+      // helper to create stream container with cursor
+      function createStreamContainer() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'streaming-output text-sm';
+        const content = document.createElement('div');
+        content.className = 'streaming-output';
+        const cursor = document.createElement('span');
+        cursor.className = 'streaming-cursor';
+        wrapper.appendChild(content);
+        wrapper.appendChild(cursor);
+
+        // buffer and flush logic
+        let tokenBuffer = [];
+        let flushTimeout = null;
+
+        function flushNow() {
+          if (!tokenBuffer.length) return;
+          // combine small tokens into one span to reduce DOM churn
+          const chunk = tokenBuffer.join('');
+          tokenBuffer = [];
+          const span = document.createElement('span');
+          span.className = 'streaming-token';
+          span.textContent = chunk;
+          content.appendChild(span);
+          // force reflow then show
+          void span.offsetWidth;
+          span.classList.add('show');
+          // keep scroll at bottom
+          wrapper.scrollIntoView({ block: 'nearest' });
+        }
+
+        function pushToken(tok) {
+          tokenBuffer.push(tok);
+          if (flushTimeout) return;
+          flushTimeout = setTimeout(() => {
+            flushNow();
+            flushTimeout = null;
+          }, 40); // batch for 40ms to smooth tokens
+        }
+
+        function finish() {
+          if (flushTimeout) { clearTimeout(flushTimeout); flushTimeout = null; }
+          flushNow();
+          // remove cursor
+          if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+        }
+
+        return { wrapper, content, cursor, pushToken, finish };
+      }
+
+      let lastGeneratedText = '';
+      let lastHtmlOutput = '';
+
+      // --- Generate (streaming-friendly) ---
+      generateBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const text = sourceText.value.trim();
+        if (!text) { showToast('Please paste some text first'); sourceText.focus(); return; }
+
+        // UI prep
+        emptyState.classList.add('hidden');
+        resultContent.classList.add('hidden');
+        loadingState.classList.remove('hidden');
+        outputActions.classList.add('opacity-50', 'pointer-events-none');
+        resultContent.innerHTML = '';
+
+        const format = formatSelect.value;
+        const level = concisenessLevel.value;
+
+        if (aiToggle.checked) {
+          const payload = { mode: 'summarize', source: text, format, level, model: 'gpt-4o-mini' };
+
+          const stream = createStreamContainer();
+          resultContent.appendChild(stream.wrapper);
+          resultContent.classList.remove('hidden');
+
+          try {
+            await streamFromProxy(payload,
+              (token) => {
+                stream.pushToken(token);
+              },
+              () => {
+                stream.finish();
+                loadingState.classList.add('hidden');
+                outputActions.classList.remove('opacity-50', 'pointer-events-none');
+                // capture text content for copy/download
+                lastGeneratedText = stream.content.textContent || '';
+                lastHtmlOutput = `<pre class="whitespace-pre-wrap p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border">${escapeHtml(lastGeneratedText)}</pre>`;
+                resultContent.innerHTML = lastHtmlOutput;
+                showToast('AI finished streaming.');
+              },
+              async (err) => {
+                loadingState.classList.add('hidden');
+                showToast('Stream error: ' + (err?.message || err));
+                // fallback to non-streaming summarizer
+                try {
+                  const res = await callOpenAIForNotes(text, format, level);
+                  lastGeneratedText = res.rawTextOutput;
+                  lastHtmlOutput = res.htmlOutput;
+                  resultContent.innerHTML = lastHtmlOutput;
+                  outputActions.classList.remove('opacity-50', 'pointer-events-none');
+                } catch (fallbackErr) {
+                  showToast('Fallback failed: ' + (fallbackErr?.message || fallbackErr));
+                }
+              }
+            );
+          } catch (err) {
+            loadingState.classList.add('hidden');
+            showToast('Streaming failed: ' + (err?.message || err));
+          }
+        } else {
+          // Non-streaming path (existing)
+          try {
+            const res = await callOpenAIForNotes(text, format, level);
+            lastGeneratedText = res.rawTextOutput;
+            lastHtmlOutput = res.htmlOutput;
+            loadingState.classList.add('hidden');
+            resultContent.innerHTML = lastHtmlOutput;
+            resultContent.classList.remove('hidden');
+            outputActions.classList.remove('opacity-50', 'pointer-events-none');
+            showToast('Study notes generated successfully!');
+          } catch (err) {
+            loadingState.classList.add('hidden');
+            showToast(err.message || 'Failed to generate notes.');
+          }
+        }
+      });
+
+      // --- Streaming Chat send (wired to chat modal) ---
+      async function sendChatMessage() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        appendToChat('user', text);
+        chatInput.value = '';
+
+        const msgs = buildMessages(text);
+
+        const stream = createStreamContainer();
+        // styling for transient assistant message
+        const transientWrapper = document.createElement('div');
+        transientWrapper.className = 'mb-3 text-sm text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl';
+        transientWrapper.innerHTML = `<div class="font-mono text-xs text-slate-400 mb-1">ASSISTANT</div>`;
+        transientWrapper.appendChild(stream.wrapper);
+        chatPane.appendChild(transientWrapper);
+        chatPane.scrollTop = chatPane.scrollHeight;
+
+        try {
+          await streamFromProxy({ mode: 'chat', messages: msgs, model: chatModel.value || 'gpt-4o-mini' },
+            (token) => { stream.pushToken(token); chatPane.scrollTop = chatPane.scrollHeight; },
+            () => {
+              stream.finish();
+              // finalize: move content into history
+              const final = stream.content.textContent || '';
+              transientWrapper.remove();
+              appendToChat('assistant', final);
+            },
+            async (err) => {
+              stream.finish();
+              transientWrapper.remove();
+              showToast('Chat stream error: ' + (err?.message || err));
+              try {
+                const fallbackResp = await openAIRequest({ mode: 'chat', messages: msgs, model: chatModel.value || 'gpt-4o-mini' });
+                const content = fallbackResp?.content || 'No response';
+                appendToChat('assistant', content);
+              } catch (fbErr) {
+                appendToChat('assistant', `Error: ${fbErr?.message || fbErr}`);
+              }
+            }
+          );
+        } catch (err) {
+          transientWrapper.remove();
+          showToast('Streaming call failed: ' + (err?.message || err));
+          try {
+            const fallbackResp = await openAIRequest({ mode: 'chat', messages: msgs, model: chatModel.value || 'gpt-4o-mini' });
+            const content = fallbackResp?.content || 'No response';
+            appendToChat('assistant', content);
+          } catch (fbErr) {
+            appendToChat('assistant', `Error: ${fbErr?.message || fbErr}`);
+          }
+        }
+      }
+
+      sendChatBtn.addEventListener('click', sendChatMessage);
+      chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
+
+      // --- Existing non-streaming helpers (kept) ---
+      function processNotes(text, format, level) {
+        const paragraphs = text.split(/\n+/).filter(p => p.trim().length > 0);
+        let sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+        sentences = sentences.map(s => s.trim()).filter(s => s.length > 8);
+
+        let countMultiplier = 5;
+        if (level === 'ultra') countMultiplier = 3;
+        if (level === 'comprehensive') countMultiplier = 10;
+
+        const words = text.split(/\s+/);
+        const capitalizedPhrases = [];
+        for (let i = 0; i < words.length - 1; i++) {
+          if (words[i][0] && words[i][0] === words[i][0].toUpperCase() && words[i].length > 3 && /^[A-Z]/.test(words[i])) {
+            capitalizedPhrases.push(words[i].replace(/[^a-zA-Z]/g, ''));
+          }
+        }
+        const uniqueKeywords = [...new Set(capitalizedPhrases)];
+
+        let htmlOutput = '';
+        let rawTextOutput = '';
+
+        if (format === 'bullets') {
+          const highlights = sentences.slice(0, Math.min(countMultiplier * 2, Math.max(3, Math.floor(sentences.length / 2))));
+          htmlOutput += `<h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-2 uppercase tracking-wide text-xs">Core Bullet Summary (${level.toUpperCase()})</h4>`;
+          htmlOutput += `<ul class="space-y-2 pl-4 list-disc marker:text-emerald-500">`;
+          rawTextOutput += `CORE BULLET SUMMARY (${level.toUpperCase()}):\n`;
+          highlights.forEach(s => { htmlOutput += `<li>${s}</li>`; rawTextOutput += `- ${s}\n`; });
+          htmlOutput += `</ul>`;
+        } else if (format === 'definitions') {
+          htmlOutput += `<h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-3 uppercase tracking-wide text-xs">Key Definitions & Concepts</h4>`;
+          htmlOutput += `<div class="grid gap-3">`;
+          rawTextOutput += `KEY DEFINITIONS & CONCEPTS:\n`;
+
+          const termsToUse = uniqueKeywords.length > 0 ? uniqueKeywords : ['Primary Subject', 'Core Principle', 'Key Variable', 'Mechanism'];
+          termsToUse.slice(0, countMultiplier + 2).forEach((term, idx) => {
+            const relatedSentence = sentences[idx % sentences.length] || 'Essential concept identified within the source material.';
+            htmlOutput += `\n<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">\n  <span class="font-semibold text-emerald-600 dark:text-emerald-400 block mb-1">${term}</span>\n  <span class="text-slate-600 dark:text-slate-300 text-sm">${relatedSentence}</span>\n</div>`;
+            rawTextOutput += `• ${term}: ${relatedSentence}\n`;
+          });
+          htmlOutput += `</div>`;
+        } else if (format === 'summary') {
+          const paraCount = level === 'ultra' ? 1 : (level === 'comprehensive' ? 4 : 2);
+          const summaryParagraphs = paragraphs.slice(0, paraCount).join(' ');
+          htmlOutput += `<h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-2 uppercase tracking-wide text-xs">TL;DR Summary Paragraph</h4>`;
+          htmlOutput += `<p class="leading-relaxed text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">${escapeHtml(summaryParagraphs || text.substring(0,400))}</p>`;
+          rawTextOutput += `TL;DR SUMMARY:\n${summaryParagraphs || text.substring(0, 400)}`;
+        } else if (format === 'exam') {
+          htmlOutput += `<h4 class="font-bold text-emerald-600 dark:text-emerald-400 mb-3 uppercase tracking-wide text-xs">Exam Q&A Flashcards</h4>`;
+          htmlOutput += `<div class="space-y-3">`;
+          rawTextOutput += `EXAM Q&A FLASHCARDS:\n`;
+
+          const sampleQuestions = [
+            { q: 'What is the primary objective or focus discussed?', a: sentences[0] || 'Core premise of the text.' },
+            { q: 'What key mechanism or factor drives this concept?', a: sentences[1] || 'Supporting structural detail.' },
+            { q: 'What crucial implication or relationship is highlighted?', a: sentences[2] || 'Secondary analytical point.' },
+            { q: 'What conclusion or takeaway should be remembered?', a: sentences[sentences.length - 1] || 'Final summary point.' }
+          ];
+
+          sampleQuestions.slice(0, countMultiplier).forEach((item, idx) => {
+            htmlOutput += `\n<div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-2">\n  <div class="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">\n    <span class="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-xs">Q${idx+1}</span>\n    <span>${item.q}</span>\n  </div>\n  <p class="text-slate-600 dark:text-slate-300 text-sm pl-8"><strong>Answer:</strong> ${item.a}</p>\n</div>`;
+            rawTextOutput += `Q${idx+1}: ${item.q}\nA: ${item.a}\n\n`;
+          });
+          htmlOutput += `</div>`;
+        }
+
+        return { htmlOutput, rawTextOutput };
+      }
+
+      async function callOpenAIForNotes(text, format, level, apiKey) {
+        const MAX_CHARS = 15000;
+        let sourceTextToUse = text;
+        if (sourceTextToUse.length > MAX_CHARS) sourceTextToUse = sourceTextToUse.slice(0, MAX_CHARS);
+
+        const systemPrompt = `You are a helpful assistant that converts source text into concise study notes. Return exactly this structure with no extra commentary:\n===HTML_START===\n[valid HTML fragment]\n===HTML_END===\n===TEXT_START===\n[plain text notes]\n===TEXT_END===`;
+        const userPrompt = `FORMAT: ${format}\nCONCISENESS: ${level}\n\nSOURCE:\n${sourceTextToUse}`;
+
+        const apiKeyToUse = getStoredApiKey();
+        if (!apiKeyToUse) throw new Error('No API key set for serverless request.');
+
+        const response = await fetch('/api/openai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 'summarize', model: 'gpt-4o-mini', source: sourceTextToUse, format, level })
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`OpenAI API error: ${response.status} ${errText}`);
+        }
+
+        const data = await response.json();
+        const content = data?.content || '';
+
+        const htmlStart = content.indexOf('===HTML_START===');
+        const htmlEnd = content.indexOf('===HTML_END===');
+        const textStart = content.indexOf('===TEXT_START===');
+        const textEnd = content.indexOf('===TEXT_END===');
+
+        let htmlOut = '';
+        let txtOut = '';
+
+        if (htmlStart !== -1 && htmlEnd !== -1) htmlOut = content.slice(htmlStart + '===HTML_START==='.length, htmlEnd).trim();
+        if (textStart !== -1 && textEnd !== -1) txtOut = content.slice(textStart + '===TEXT_START==='.length, textEnd).trim();
+
+        if (!htmlOut && !txtOut) {
+          txtOut = content.trim();
+          htmlOut = `<pre class="whitespace-pre-wrap bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">${escapeHtml(content)}</pre>`;
+        }
+
+        return { htmlOutput: htmlOut, rawTextOutput: txtOut };
+      }
+
+      // copy / download handlers
+      copyBtn.addEventListener('click', (e) => {
+        e.preventDefault(); if (!lastGeneratedText) return; const ta = document.createElement('textarea'); ta.value = lastGeneratedText; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); showToast('Notes copied to clipboard!'); } catch(e){ showToast('Failed to copy notes.'); } document.body.removeChild(ta);
+      });
+
+      downloadTxtBtn.addEventListener('click', (e) => { e.preventDefault(); if (!lastGeneratedText) return; const blob = new Blob([lastGeneratedText], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `LeoJStudyLens_${formatSelect.value}_${new Date().toISOString().slice(0,10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showToast('Downloaded as .txt file!'); });
+
+      downloadHtmlBtn.addEventListener('click', (e) => { e.preventDefault(); if (!lastHtmlOutput) return; const fullHtmlDoc = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>LeoJStudyLens Notes - ${formatSelect.value.toUpperCase()}</title>\n</head>\n<body>${lastHtmlOutput}</body>\n</html>`; const blob = new Blob([fullHtmlDoc], { type: 'text/html;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `LeoJStudyLens_${formatSelect.value}_${new Date().toISOString().slice(0,10)}.html`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showToast('Downloaded as .html file!'); });
+
+      // initial render for chat
+      renderChat();
+    });
+  </script>
+</body>
+</html>
