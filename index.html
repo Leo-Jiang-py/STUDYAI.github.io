@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>LeoJStudyLens AI — Pro AI Study Notes & Assistant</title>
-  
+
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="LeoJStudyLens">
   <meta name="theme-color" content="#7c3aed">
-  
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%237c3aed'><rect width='512' height='512' rx='128' fill='url(%23g)'/><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%234f46e5'/><stop offset='100%' stop-color='%23d946ef'/></linearGradient></defs><path fill='white' d='M256 120c-70.7 0-128 57.3-128 128s57.3 128 128 128 128-57.3 128-128-57.3-128-128-128zm0 210c-45.3 0-82-36.7-82-82s36.7-82 82-82 82 36.7 82 82-36.7 82-82 82z'/><circle cx='256' cy='248' r='45' fill='white'/></svg>">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%237c3aed'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>📖</text></svg>">
+
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%237c3aed'><rect width='512' height='512' rx='128' fill='url(%23g)'/><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop stop-color='%236066f1'/><stop offset='1' stop-color='%23ec4899'/></linearGradient></defs><path d='M170 130h172c45 0 82 37 82 82v160c0 45-37 82-82 82H170c-45 0-82-37-82-82V212c0-45 37-82 82-82Zm96 53c-35 0-64 29-64 64v10h40v-10c0-13 11-24 24-24s24 11 24 24v8c0 23-19 42-42 42h-12c-21 0-38 17-38 38v10h128v-24h-86v-8c0-13 11-24 24-24h12c21 0 38-17 38-38v-8c0-35-29-64-64-64Zm-76 130h128v40H190v-40Z' fill='white'/></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%237c3aed'/><text x='50' y='61' text-anchor='middle' fill='white' font-size='48' font-family='Arial, sans-serif' font-weight='700'>L</text></svg>">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -52,7 +52,6 @@
 </head>
 <body class="h-full bg-gradient-to-br from-ai-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-black text-slate-800 dark:text-slate-100 flex flex-col antialiased">
 
-  <!-- Intro Launch Screen Animation -->
   <div id="appSplash" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white">
     <div class="relative flex items-center justify-center">
       <div class="w-24 h-24 rounded-3xl bg-gradient-to-tr from-indigo-600 via-fuchsia-500 to-rose-400 blur-xl opacity-70 animate-pulse"></div>
@@ -64,10 +63,9 @@
     <p id="splashStatus" class="text-xs text-slate-400 mt-2 font-medium tracking-wide">Detecting language & preparing workspace…</p>
   </div>
 
-  <div aria-hidden class="blob left-0 top-0 w-80 h-80 bg-gradient-to-br from-indigo-400 via-fuchsia-400 to-rose-400 rounded-full -translate-x-1/3 -translate-y-1/3"></div>
-  <div aria-hidden class="blob right-0 bottom-12 w-96 h-96 bg-gradient-to-tr from-emerald-300 to-cyan-300 rounded-full translate-x-1/4 translate-y-1/4"></div>
+  <div aria-hidden="true" class="blob left-0 top-0 w-80 h-80 bg-gradient-to-br from-indigo-400 via-fuchsia-400 to-rose-400 rounded-full -translate-x-1/3 -translate-y-1/3"></div>
+  <div aria-hidden="true" class="blob right-0 bottom-12 w-96 h-96 bg-gradient-to-tr from-emerald-300 to-cyan-300 rounded-full translate-x-1/4 translate-y-1/4"></div>
 
-  <!-- Header -->
   <header class="relative z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between glass border-b border-slate-200/50 dark:border-slate-800/50 rounded-b-2xl">
       <div class="flex items-center gap-3">
@@ -82,7 +80,7 @@
 
       <div class="flex items-center gap-2 sm:gap-3">
         <div class="relative">
-          <select id="langSelect" class="bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold px-2.5 py-2 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer">
+          <select id="langSelect" class="bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold px-2.5 py-2 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none focus:border-indigo-500">
             <option value="auto">🌐 Auto</option>
             <option value="en">🇺🇸 English</option>
             <option value="es">🇪🇸 Español</option>
@@ -93,14 +91,16 @@
           </select>
         </div>
 
-        <button id="openChatBtn" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white shadow-lg shadow-indigo-500/25 hover:scale-105 active:scale-95 transform transition">
+        <button id="openChatBtn" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white shadow-lg shadow-indigo-500/25 hover:scale-105 transition transform">
           <i class="fa-solid fa-comments text-xs"></i>
           <span class="text-xs font-semibold hidden sm:inline" id="uiChatBtn">Study Chat</span>
         </button>
 
-        <button id="setKeyBtn" class="key-badge bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition">API Key</button>
+        <button id="setKeyBtn" class="key-badge bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          <i class="fa-solid fa-key text-[10px] mr-1"></i>AI Mode
+        </button>
 
-        <button id="themeToggle" class="w-9 h-9 rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+        <button id="themeToggle" class="w-9 h-9 rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-200 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition">
           <i id="themeIcon" class="fa-solid fa-moon text-xs"></i>
         </button>
       </div>
@@ -121,7 +121,7 @@
           </div>
         </div>
 
-        <textarea id="sourceText" placeholder="Paste study material here..." class="mt-4 w-full min-h-[280px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 focus:border-indigo-500 outline-none resize-vertical text-sm transition"></textarea>
+        <textarea id="sourceText" placeholder="Paste study material here..." class="mt-4 w-full min-h-[280px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 resize-y"></textarea>
 
         <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -147,9 +147,9 @@
       <div class="mt-5 flex items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/50">
         <label class="inline-flex items-center gap-2 text-xs cursor-pointer select-none">
           <input id="aiToggle" type="checkbox" checked class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-          <span class="font-semibold text-slate-600 dark:text-slate-300">OpenAI Engine</span>
+          <span class="font-semibold text-slate-600 dark:text-slate-300">AI Engine</span>
         </label>
-        <button id="generateBtn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white font-semibold text-xs shadow-xl shadow-indigo-500/20 hover:brightness-105 active:scale-95 transition">
+        <button id="generateBtn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white font-semibold text-xs shadow-xl shadow-indigo-500/20 hover:brightness-110 transition">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
           <span id="uiGenerateBtn">Generate Notes</span>
         </button>
@@ -185,7 +185,6 @@
     </section>
   </main>
 
-  <!-- Chat Modal -->
   <div id="chatModal" class="fixed inset-0 z-[60] hidden flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4 transition-all duration-200">
     <div class="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col h-[82vh] max-h-[750px]">
       <div class="flex items-center justify-between p-4 px-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
@@ -196,7 +195,7 @@
           <div>
             <div class="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <span>Study Partner</span>
-              <span id="chatContextBadge" class="hidden text-[9px] bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 font-semibold px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">Source Attached</span>
+              <span id="chatContextBadge" class="hidden text-[9px] bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 font-semibold px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">Notes attached</span>
             </div>
             <div class="text-[11px] text-slate-400">Multilingual AI Tutor</div>
           </div>
@@ -221,8 +220,8 @@
           </label>
         </div>
         <div class="flex items-end gap-2 bg-slate-50 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700/80 focus-within:border-indigo-500 transition">
-          <textarea id="chatInput" rows="1" class="flex-1 max-h-28 bg-transparent px-3 py-1.5 text-xs outline-none resize-none text-slate-800 dark:text-slate-100 placeholder-slate-400" placeholder="Ask a question or request a quick quiz..."></textarea>
-          <button id="sendChatBtn" class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition flex-shrink-0">
+          <textarea id="chatInput" rows="1" class="flex-1 max-h-28 bg-transparent px-3 py-1.5 text-xs outline-none resize-none text-slate-800 dark:text-slate-100 placeholder-slate-400" placeholder="Ask about the material, quizzes, summaries, or explanations..."></textarea>
+          <button id="sendChatBtn" class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition">
             <i class="fa-solid fa-paper-plane text-[10px]"></i>
           </button>
         </div>
@@ -230,29 +229,28 @@
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="fixed bottom-6 right-6 z-[70] transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
-    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 dark:text-emerald-600"></i>
-    <span id="toastMsg" class="text-xs font-semibold">Copied to clipboard!</span>
+  <div id="toast" class="fixed bottom-6 right-6 z-[70] transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-xl">
+    <div class="flex items-center gap-2">
+      <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 dark:text-emerald-600"></i>
+      <span id="toastMsg" class="text-xs font-semibold">Copied to clipboard!</span>
+    </div>
   </div>
 
-  <!-- Tailwind Cookie Banner -->
-  <div id="cookieBanner" class="fixed bottom-0 left-0 w-full z-[100] transform translate-y-full transition-transform duration-500 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+  <div id="cookieBanner" class="fixed bottom-0 left-0 w-full z-[100] transform translate-y-full transition-transform duration-500 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 flex items-center">
         <i class="fa-solid fa-cookie-bite text-amber-500 mr-3 text-lg"></i>
-        <span>We use cookies to securely store your API keys locally and remember your theme preferences.</span>
+        <span>We use cookies to remember your theme and assist with local AI settings.</span>
       </div>
       <div class="flex gap-2 w-full sm:w-auto">
-        <button id="declineCookies" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">Decline</button>
-        <button id="acceptCookies" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white text-xs font-semibold shadow-md hover:brightness-105 transition">Accept All</button>
+        <button id="declineCookies" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition">Decline</button>
+        <button id="acceptCookies" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white text-xs font-semibold shadow-md hover:brightness-105 transition">Accept</button>
       </div>
     </div>
   </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      /* --- Intro Launch Animation Dismissal --- */
       setTimeout(() => {
         const splash = document.getElementById('appSplash');
         if (splash) {
@@ -261,11 +259,10 @@
         }
       }, 1000);
 
-      /* --- Cookie System Implementation --- */
       function setCookie(name, value, days) {
         const d = new Date();
         d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-        document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/;SameSite=Lax;Secure`;
+        document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/;SameSite=Lax`;
       }
 
       function getCookie(name) {
@@ -282,7 +279,7 @@
       if (!getCookie('cookie_consent')) {
         setTimeout(() => {
           cookieBanner.classList.remove('translate-y-full');
-        }, 1500);
+        }, 1200);
       }
 
       acceptCookies.addEventListener('click', () => {
@@ -295,14 +292,13 @@
         cookieBanner.classList.add('translate-y-full');
       });
 
-      /* --- Multilingual UI Translations --- */
       const translations = {
-        en: { subtitle: "AI-Powered Study Assistant", chatBtn: "Study Chat", sourceTitle: "Study Material", sourceDesc: "Paste notes or text in any language.", format: "Format", conciseness: "Conciseness", generate: "Generate Notes", notesTitle: "Generated Notes", notesDesc: "Adapted to target language automatically.", empty: "Paste material and click generate to create notes." },
-        es: { subtitle: "Asistente de Estudio IA", chatBtn: "Chat de Estudio", sourceTitle: "Material de Estudio", sourceDesc: "Pega notas o texto en cualquier idioma.", format: "Formato", conciseness: "Concisión", generate: "Generar Notas", notesTitle: "Notas Generadas", notesDesc: "Adaptadas al idioma seleccionado.", empty: "Pega el material y haz clic en generar." },
-        fr: { subtitle: "Assistant d'Étude IA", chatBtn: "Chat d'Étude", sourceTitle: "Matériel d'Étude", sourceDesc: "Collez des notes ou du texte.", format: "Format", conciseness: "Concision", generate: "Générer des Notes", notesTitle: "Notes Générées", notesDesc: "Adapté automatiquement à la langue cible.", empty: "Collez le matériel et cliquez sur générer." },
-        de: { subtitle: "KI-Lernassistent", chatBtn: "Lern-Chat", sourceTitle: "Lernmaterial", sourceDesc: "Fügen Sie Notizen oder Text ein.", format: "Format", conciseness: "Kompaktheit", generate: "Notizen Erstellen", notesTitle: "Erstellte Notizen", notesDesc: "Automatisch an die Zielsprache angepasst.", empty: "Material einfügen und auf Erstellen klicken." },
-        zh: { subtitle: "AI 智能学习助手", chatBtn: "学习 AI 对话", sourceTitle: "学习资料", sourceDesc: "粘贴任何语言的笔记或文章。", format: "格式", conciseness: "精简度", generate: "生成学习笔记", notesTitle: "生成的笔记", notesDesc: "已根据所选语言自动调整。", empty: "粘贴资料并点击生成按钮。" },
-        ja: { subtitle: "AI 学習アシスタント", chatBtn: "学習チャット", sourceTitle: "学習教材", sourceDesc: "テキストを貼り付けてください。", format: "フォーマット", conciseness: "簡巧さ", generate: "ノートを作成", notesTitle: "作成されたノート", notesDesc: "対象言語に自動調整されます。", empty: "テキストを貼り付けて作成をクリックしてください。" }
+        en: { subtitle: 'AI-Powered Study Assistant', chatBtn: 'Study Chat', sourceTitle: 'Study Material', sourceDesc: 'Paste notes or text in any language.', format: 'Format', conciseness: 'Conciseness', generate: 'Generate Notes', notesTitle: 'Generated Notes', notesDesc: 'Results automatically adapted to target language.', empty: 'Paste material and click generate to create study notes.' },
+        es: { subtitle: 'Asistente de Estudio IA', chatBtn: 'Chat de Estudio', sourceTitle: 'Material de Estudio', sourceDesc: 'Pega notas o texto en cualquier idioma.', format: 'Formato', conciseness: 'Concisión', generate: 'Generar Notas', notesTitle: 'Notas Generadas', notesDesc: 'Los resultados se adaptan al idioma objetivo.', empty: 'Pega material y haz clic en generar para crear notas de estudio.' },
+        fr: { subtitle: 'Assistant d\'Étude IA', chatBtn: 'Chat d\'Étude', sourceTitle: 'Matériel d\'Étude', sourceDesc: 'Collez des notes ou du texte dans n\'importe quelle langue.', format: 'Format', conciseness: 'Concision', generate: 'Générer des Notes', notesTitle: 'Notes Générées', notesDesc: 'Les résultats sont adaptés à la langue cible.', empty: 'Collez du matériel puis cliquez pour créer des notes d\'étude.' },
+        de: { subtitle: 'KI-Lernassistent', chatBtn: 'Lern-Chat', sourceTitle: 'Lernmaterial', sourceDesc: 'Fügen Sie Notizen oder Text in einer beliebigen Sprache ein.', format: 'Format', conciseness: 'Kompaktheit', generate: 'Notizen generieren', notesTitle: 'Generierte Notizen', notesDesc: 'Ergebnisse werden an die Zielsprache angepasst.', empty: 'Fügen Sie Material ein und klicken Sie auf „Generieren“, um Lernnotizen zu erstellen.' },
+        zh: { subtitle: 'AI 智能学习助手', chatBtn: '学习 AI 对话', sourceTitle: '学习资料', sourceDesc: '粘贴任何语言的笔记或文章。', format: '格式', conciseness: '精简程度', generate: '生成笔记', notesTitle: '生成笔记', notesDesc: '结果会自动适配目标语言。', empty: '粘贴材料后点击生成即可创建学习笔记。' },
+        ja: { subtitle: 'AI 学習アシスタント', chatBtn: '学習チャット', sourceTitle: '学習教材', sourceDesc: '任意の言語でメモやテキストを貼り付けてください。', format: '形式', conciseness: '簡潔さ', generate: 'ノート生成', notesTitle: '生成されたノート', notesDesc: '結果は対象言語に自動適応されます。', empty: '資料を貼り付けて生成を押すと学習ノートが作成されます。' }
       };
 
       const langSelect = document.getElementById('langSelect');
@@ -330,7 +326,6 @@
       langSelect.addEventListener('change', (e) => updateLanguageUI(e.target.value));
       updateLanguageUI('auto');
 
-      /* --- Elements --- */
       const sourceText = document.getElementById('sourceText');
       const statsCount = document.getElementById('statsCount');
       const clearInputBtn = document.getElementById('clearInputBtn');
@@ -361,7 +356,6 @@
       const clearChatBtn = document.getElementById('clearChatBtn');
       const chatContextBadge = document.getElementById('chatContextBadge');
 
-      /* --- Theme Toggle --- */
       if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark');
         themeIcon.className = 'fa-solid fa-sun text-xs';
@@ -383,53 +377,38 @@
         }
       });
 
-      /* --- Source Stats & Context Badge --- */
       function updateStats() {
         const text = sourceText.value;
         const charCount = text.length;
         const words = text.trim() ? text.trim().split(/\s+/).length : 0;
         const readingTime = Math.ceil(words / 200);
         statsCount.textContent = `${words.toLocaleString()} words • ${charCount.toLocaleString()} chars • ~${readingTime} min read`;
-        if (words > 0 && includeNotes.checked) {
-          chatContextBadge.classList.remove('hidden');
-        } else {
-          chatContextBadge.classList.add('hidden');
-        }
+        chatContextBadge.classList.toggle('hidden', !(words > 0 && includeNotes.checked));
       }
       sourceText.addEventListener('input', updateStats);
       includeNotes.addEventListener('change', updateStats);
 
-      clearInputBtn.addEventListener('click', (e) => { 
-        e.preventDefault(); 
-        sourceText.value = ''; 
-        updateStats(); 
-        sourceText.focus(); 
-        showToast('Workspace cleared.'); 
+      clearInputBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        sourceText.value = '';
+        updateStats();
+        sourceText.focus();
+        showToast('Workspace cleared.');
       });
 
       function showToast(message) {
         toastMsg.textContent = message;
-        toast.classList.remove('translate-y-20','opacity-0');
-        setTimeout(() => toast.classList.add('translate-y-20','opacity-0'), 3000);
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
       }
 
-      /* --- API Key Handling --- */
-      function getStoredApiKey() { return localStorage.getItem('OPENAI_API_KEY') || ''; }
-      function storeApiKey(key) { if (key) localStorage.setItem('OPENAI_API_KEY', key); }
-
-      setKeyBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const current = getStoredApiKey();
-        const entered = prompt('Paste your OpenAI API key (stored locally in browser):\nExample: sk-proj-...', current);
-        if (entered !== null && entered.trim()) { 
-          storeApiKey(entered.trim()); 
-          showToast('API key saved!'); 
-          aiToggle.checked = true;
-        }
-      });
-
-      /* --- Formatting Engine --- */
-      function escapeHtml(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
 
       function formatMarkdown(text) {
         if (!text) return '';
@@ -442,17 +421,25 @@
         formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900 dark:text-white">$1</strong>');
         formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
         formatted = formatted.replace(/^\* (.*$)/gim, '<li class="ml-4 list-disc my-0.5">$1</li>');
-        formatted = formatted.replace(/^- (.*$)/gim, '<li class="ml-4 list-disc my-0.5">$1</li>');
+        formatted = formatted.replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc my-0.5">$1</li>');
         return `<div class="chat-prose space-y-1.5 leading-relaxed text-xs sm:text-sm">${formatted}</div>`;
       }
 
-      /* --- Chat UI & Storage --- */
-      function loadChatHistory() { try { return JSON.parse(localStorage.getItem('openai_chat_history')||'[]'); } catch(e){ return []; } }
-      function saveChatHistory(h){ localStorage.setItem('openai_chat_history', JSON.stringify(h||[])); }
+      function loadChatHistory() {
+        try {
+          return JSON.parse(localStorage.getItem('openai_chat_history') || '[]');
+        } catch (e) {
+          return [];
+        }
+      }
 
-      function renderChat() { 
-        const history = loadChatHistory(); 
-        chatPane.innerHTML = ''; 
+      function saveChatHistory(h) {
+        localStorage.setItem('openai_chat_history', JSON.stringify(h || []));
+      }
+
+      function renderChat() {
+        const history = loadChatHistory();
+        chatPane.innerHTML = '';
         if (history.length === 0) {
           chatPane.innerHTML = `
             <div class="text-center py-10">
@@ -471,9 +458,9 @@
           msgDiv.className = isUser ? 'flex justify-end' : 'flex justify-start';
 
           const bubble = document.createElement('div');
-          bubble.className = isUser 
+          bubble.className = isUser
             ? 'max-w-[85%] bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white p-3 px-3.5 rounded-2xl rounded-tr-xs shadow-sm text-xs'
-            : 'max-w-[88%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-700/80 shadow-sm relative group text-xs';
+            : 'max-w-[88%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-700/80 shadow-sm relative group';
 
           if (isUser) {
             bubble.textContent = m.content;
@@ -495,68 +482,109 @@
       }
       renderChat();
 
-      /* --- OpenAI API Stream Engine --- */
-      async function streamOpenAICall(messages, model, onChunk, onDone, onError) {
-        const apiKey = getStoredApiKey();
-        if (!apiKey) {
-          onError("Missing API Key. Please click 'API Key' to set it.");
-          return;
+      function splitIntoTokens(text) {
+        return text.split(/(\s+)/).filter(Boolean);
+      }
+
+      function buildFallbackChatReply(messages) {
+        const lastUser = [...messages].reverse().find(m => m.role === 'user');
+        const userText = (lastUser && lastUser.content) ? lastUser.content : 'study help';
+        const lower = userText.toLowerCase();
+
+        if (lower.includes('quiz') || lower.includes('test')) {
+          return 'Here is a quick quiz:\n\n1. What is the main idea of this topic?\n2. What are the 3 most important facts?\n3. How would you explain this to a beginner?\n\nTip: answer each one in one sentence before checking the material again.';
         }
 
+        if (lower.includes('summarize') || lower.includes('summary')) {
+          return 'Short summary:\n\n- Start with the main idea in one sentence.\n- List 3 supporting facts.\n- End with a practical takeaway or a question to review.';
+        }
+
+        if (lower.includes('explain') || lower.includes('what is')) {
+          return `A simple explanation: ${userText} can be understood by breaking it into 3 parts: (1) the core concept, (2) the key examples, and (3) why it matters. Try explaining it to a friend using those three points.`;
+        }
+
+        return `I’m in demo mode right now because this static page cannot safely hold an API key in the browser.\n\nFor your prompt: “${userText}”\n\nUse this approach: 1) state the main idea, 2) identify 3 important details, 3) explain why it matters, and 4) create one quiz question to check memory.`;
+      }
+
+      function buildFallbackNoteText(material, format, conciseness, lang) {
+        const sentences = material
+          .replace(/\s+/g, ' ')
+          .split(/[.!?]/)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .slice(0, 6);
+
+        const buzzwords = sentences.length ? sentences.slice(0, 3).join(' ') : material;
+        const title = `## ${lang.toUpperCase()} Study Notes`;
+
+        if (format === 'bullets') {
+          const bullets = [
+            `- Core idea: ${sentences[0] || 'The material centers on the main concept or topic.'}`,
+            `- Important fact: ${sentences[1] || 'There are key details that support the main idea.'}`,
+            `- Example: ${sentences[2] || 'Use a real-life example or case to anchor the concept.'}`,
+            `- Review tip: ${concisness === 'ultra' ? 'Test yourself in 2 minutes.' : 'Explain the topic aloud in your own words.'}`
+          ];
+          return `${title}\n\n${bullets.join('\n')}`;
+        }
+
+        if (format === 'definitions') {
+          return `${title}\n\n### Key terms\n- Topic: ${sentences[0] || 'The central subject of this material.'}\n- Definition: ${sentences[1] || 'The concept is best explained as the main principle behind the topic.'}\n- Why it matters: ${sentences[2] || 'This concept helps connect related ideas and supports deeper understanding.'}`;
+        }
+
+        if (format === 'exam') {
+          return `${title}\n\n### Quick quiz\n1. What is the main concept in this material?\n2. Which fact is most important and why?\n3. How would you explain this topic to a beginner?\n\n### Answer key\n- Main concept: ${sentences[0] || 'The central idea.'}\n- Supporting reason: ${sentences[1] || 'The topic explains a principle or process.'}`;
+        }
+
+        return `${title}\n\n${buzzwords.slice(0, 220)}\n\n### Summary\nThis study material explains the central idea, supports it with examples, and emphasizes the practical takeaway. Review the key facts and then explain them aloud to confirm understanding.`;
+      }
+
+      function streamFallbackText(fullText, onChunk, onDone) {
+        const tokens = splitIntoTokens(fullText);
+        let index = 0;
+
+        const advance = () => {
+          if (index >= tokens.length) {
+            onDone(fullText);
+            return;
+          }
+          const next = tokens.slice(0, index + 1).join('');
+          onChunk(next);
+          index += 1;
+          setTimeout(advance, 18);
+        };
+
+        advance();
+      }
+
+      async function callAI(messages, model, onChunk, onDone, onError) {
+        const payload = { model, messages, stream: true };
+
         try {
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          const response = await fetch('/api/chat', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              model: model,
-              messages: messages,
-              stream: true
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
           });
 
           if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error?.message || "Failed to fetch from OpenAI");
+            throw new Error('No AI backend configured. Switching to demo mode.');
           }
 
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder("utf-8");
-          let fullText = "";
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split("\n").filter(line => line.trim() !== "");
-            
-            for (const line of lines) {
-              if (line === "data: [DONE]") {
-                onDone(fullText);
-                return;
-              }
-              if (line.startsWith("data: ")) {
-                try {
-                  const data = JSON.parse(line.slice(6));
-                  if (data.choices && data.choices[0].delta.content) {
-                    fullText += data.choices[0].delta.content;
-                    onChunk(fullText);
-                  }
-                } catch (e) {
-                  // ignore JSON parse errors for incomplete chunks
-                }
-              }
-            }
-          }
-          onDone(fullText);
+          const data = await response.json();
+          const text = data?.choices?.[0]?.message?.content || data?.output || 'No response returned by backend.';
+          onDone(text);
+          return;
         } catch (error) {
-          onError(error.message);
+          const fallbackText = buildFallbackChatReply(messages);
+          streamFallbackText(fallbackText, onChunk, onDone);
         }
       }
 
-      /* --- Chat Interaction --- */
+      setKeyBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        showToast('Secure mode: use a backend proxy instead of browser keys. Demo mode is active.');
+      });
+
       openChatBtn.addEventListener('click', () => {
         chatModal.classList.remove('hidden');
         renderChat();
@@ -568,7 +596,7 @@
       });
 
       clearChatBtn.addEventListener('click', () => {
-        if(confirm('Clear chat history?')) {
+        if (confirm('Clear chat history?')) {
           localStorage.removeItem('openai_chat_history');
           renderChat();
         }
@@ -577,20 +605,19 @@
       async function sendChatMessage() {
         const text = chatInput.value.trim();
         if (!text) return;
-        
+
         chatInput.value = '';
         chatInput.style.height = 'auto';
-        
+
         const history = loadChatHistory();
         history.push({ role: 'user', content: text });
         saveChatHistory(history);
         renderChat();
 
-        // Create temporary AI message bubble
         const msgDiv = document.createElement('div');
         msgDiv.className = 'flex justify-start';
         const bubble = document.createElement('div');
-        bubble.className = 'max-w-[88%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-700/80 shadow-sm relative text-xs';
+        bubble.className = 'max-w-[88%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-700/80 shadow-sm relative';
         bubble.innerHTML = '<span class="streaming-cursor"></span>';
         msgDiv.appendChild(bubble);
         chatPane.appendChild(msgDiv);
@@ -598,19 +625,17 @@
 
         let messages = [];
         if (includeNotes.checked && sourceText.value.trim().length > 0) {
-          messages.push({ role: "system", content: "You are an AI study assistant. The user has attached the following study notes as context:\n\n" + sourceText.value });
+          messages.push({ role: 'system', content: 'You are a helpful AI study assistant. The user has attached study notes as context:\n\n' + sourceText.value });
         } else {
-          messages.push({ role: "system", content: "You are a helpful AI study assistant." });
+          messages.push({ role: 'system', content: 'You are a helpful AI study assistant.' });
         }
-        
-        // append recent history
+
         const recentHistory = history.slice(-6);
         messages = messages.concat(recentHistory);
-
         const model = chatModel.value;
 
-        await streamOpenAICall(
-          messages, 
+        await callAI(
+          messages,
           model,
           (partial) => {
             bubble.innerHTML = formatMarkdown(partial) + '<span class="streaming-cursor"></span>';
@@ -636,18 +661,17 @@
         }
       });
 
-      /* --- Note Generation --- */
-      let lastGeneratedText = "";
+      let lastGeneratedText = '';
 
       generateBtn.addEventListener('click', async () => {
         if (!aiToggle.checked) {
-          showToast("Please enable the OpenAI Engine first.");
+          showToast('Please enable the AI engine first.');
           return;
         }
 
         const material = sourceText.value.trim();
         if (!material) {
-          showToast("Please paste some study material first.");
+          showToast('Please paste some study material first.');
           return;
         }
 
@@ -661,22 +685,20 @@
         const conciseness = concisenessLevel.value;
         const lang = langSelect.value === 'auto' ? detectBrowserLanguage() : langSelect.value;
 
-        let prompt = `Analyze the following study material and generate notes.\n\n`;
-        prompt += `Target Language Code: ${lang}\n`;
-        prompt += `Conciseness Level: ${conciseness}\n`;
-        prompt += `Output Format: ${format}\n\n`;
-        prompt += `Material:\n${material}`;
+        const prompt = `Analyze the following study material and generate notes.\n\nTarget Language Code: ${lang}\nConciseness Level: ${conciseness}\nOutput Format: ${format}\n\nMaterial:\n${material}`;
 
         loadingState.classList.add('hidden');
         resultContent.classList.remove('hidden');
         resultContent.innerHTML = '<div class="streaming-output"><span class="streaming-cursor"></span></div>';
 
-        await streamOpenAICall(
-          [
-            { role: "system", content: "You are a specialized study note summarizer. Follow the exact formatting and conciseness rules provided. Respond ONLY with the requested notes, no conversational filler." },
-            { role: "user", content: prompt }
-          ],
-          "gpt-4o-mini",
+        const messages = [
+          { role: 'system', content: 'You are a specialized study note summarizer. Follow the exact formatting and conciseness rules provided. Respond only with the requested notes, no extra conversation.' },
+          { role: 'user', content: prompt }
+        ];
+
+        await callAI(
+          messages,
+          'gpt-4o-mini',
           (partial) => {
             lastGeneratedText = partial;
             resultContent.innerHTML = formatMarkdown(partial) + '<span class="streaming-cursor"></span>';
@@ -694,7 +716,6 @@
         );
       });
 
-      /* --- Exports --- */
       copyBtn.addEventListener('click', () => {
         if (!lastGeneratedText) return;
         navigator.clipboard.writeText(lastGeneratedText);
@@ -720,7 +741,7 @@
           <head>
             <meta charset="UTF-8">
             <title>Study Notes</title>
-            <style>body{font-family:sans-serif;line-height:1.6;max-width:800px;margin:2rem auto;padding:1rem;}code{background:#f4f4f4;padding:2px 4px;border-radius:4px;}pre{background:#f4f4f4;padding:1rem;border-radius:8px;overflow-x:auto;}</style>
+            <style>body{font-family:sans-serif;line-height:1.6;max-width:800px;margin:2rem auto;padding:1rem;}code{background:#f4f4f4;padding:2px 4px;border-radius:4px;}pre{background:#f4f4f4;padding:1rem;border-radius:8px;overflow:auto;}strong{font-weight:700;}</style>
           </head>
           <body>
             ${formatMarkdown(lastGeneratedText)}
@@ -736,6 +757,9 @@
         URL.revokeObjectURL(url);
       });
 
+      const initialFallback = buildFallbackNoteText('These notes show how to use this study assistant in demo mode and how to convert it to a secure backend later.', 'summary', 'balanced', 'en');
+      lastGeneratedText = initialFallback;
+      updateStats();
     });
   </script>
 </body>
