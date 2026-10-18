@@ -14,29 +14,34 @@ export default async function handler(req, res) {
   const shouldStream = body.stream !== false && (body.stream === true || body.streaming === true || mode === 'chat' || mode === 'summarize');
 
   try {
-    let payload = { model, temperature: 0.2, max_tokens: 1200, stream: shouldStream };
+    let payload = { 
+      model, 
+      temperature: body.temperature || (mode === 'summarize' ? 0.3 : 0.5), 
+      max_tokens: body.max_tokens || (mode === 'summarize' ? 3500 : 2500), 
+      stream: shouldStream 
+    };
 
     if (mode === 'summarize') {
-      const source = body.source || '';
-      const format = body.format || 'bullets';
-      const level = body.level || 'balanced';
+      const source = body.source || body.text || '';
+      const format = body.format || 'exhaustive';
+      const level = body.level || 'max';
 
       payload.messages = [
         {
           role: 'system',
           content:
-            'You are a study assistant. Turn the source content into concise study notes. Return exactly the structure below, no extra commentary. ===HTML_START=== [valid HTML fragment] ===HTML_END=== ===TEXT_START=== [plain text notes] ===TEXT_END===' 
+            'You are a world-class academic study assistant. Turn source content into an exhaustive, highly detailed, multi-section study breakdown using Markdown headers (##, ###). Include thorough descriptions, key terms, and review questions.'
         },
         {
           role: 'user',
-          content: `FORMAT: ${format}\nCONCISENESS: ${level}\n\nSOURCE:\n${source}`
+          content: `FORMAT: ${format}\nDEPTH LEVEL: ${level}\n\nSOURCE CONTENT:\n${source}`
         }
       ];
     } else {
-      const messages = Array.isArray(body.messages) ? body.messages : [{ role: 'user', content: body.prompt || '' }];
+      const messages = Array.isArray(body.messages) 
+        ? body.messages 
+        : [{ role: 'user', content: body.prompt || body.content || '' }];
       payload.messages = messages;
-      payload.max_tokens = body.max_tokens || 800;
-      payload.temperature = body.temperature || 0.3;
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -50,36 +55,38 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errText = await response.text();
-      return res.status(response.status).json({ error: errText || 'OpenAI request failed' });
+      return res.status(response.status).json({ error: errText || 'OpenAI API request failed.' });
     }
 
-    // Handle Streaming Response
+    // Handle Streaming Output (Streams pure text chunks directly to client)
     if (shouldStream && response.body) {
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8'); // Use text/plain so frontend gets pure text
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
 
       const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete trailing lines in buffer
+
         for (const line of lines) {
-          // Parse OpenAI's SSE format: "data: {...}"
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith('data: ') && trimmedLine !== 'data: [DONE]') {
             try {
-              const data = JSON.parse(line.slice(6));
-              const text = data.choices[0]?.delta?.content || '';
+              const parsed = JSON.parse(trimmedLine.slice(6));
+              const text = parsed.choices[0]?.delta?.content || '';
               if (text) {
-                res.write(text); // Write ONLY the text tokens to the frontend
+                res.write(text);
               }
             } catch (e) {
-              // Silently ignore incomplete JSON chunks that span multiple lines
+              // Ignore partial JSON lines
             }
           }
         }
@@ -89,11 +96,11 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Handle Non-Streaming Response
+    // Handle Non-Streaming JSON Response
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content || '';
-    return res.status(200).json({ ok: true, content });
-    
+    return res.status(200).json({ ok: true, content, choices: data?.choices });
+
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Unexpected server error.' });
   }
