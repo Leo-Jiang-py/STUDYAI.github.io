@@ -10,6 +10,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="LeoJStudyLens">
   <meta name="theme-color" content="#7c3aed">
+  
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%237c3aed'><rect width='512' height='512' rx='128' fill='url(%23g)'/><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%234f46e5'/><stop offset='100%' stop-color='%23d946ef'/></linearGradient></defs><path fill='white' d='M256 120c-70.7 0-128 57.3-128 128s57.3 128 128 128 128-57.3 128-128-57.3-128-128-128zm0 210c-45.3 0-82-36.7-82-82s36.7-82 82-82 82 36.7 82 82-36.7 82-82 82z'/><circle cx='256' cy='248' r='45' fill='white'/></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%237c3aed'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>📖</text></svg>">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -30,7 +33,11 @@
     body { font-family: 'Inter', sans-serif; }
     .blob { position: absolute; filter: blur(80px); opacity: 0.24; transform: translateZ(0); }
     .glass { backdrop-filter: blur(12px); }
-    #appSplash { transition: opacity 0.6s ease, visibility 0.6s; }
+    #appSplash { transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.6s; }
+    .splash-logo-anim { animation: pulseLogo 1.5s infinite ease-in-out alternate; }
+    @keyframes pulseLogo { 0% { transform: scale(0.92); opacity: 0.8; } 100% { transform: scale(1.08); opacity: 1; } }
+    .streaming-cursor { display: inline-block; width: 8px; height: 1.1em; background: #7c3aed; margin-left: 4px; vertical-align: middle; border-radius: 2px; animation: blink 0.8s infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.3); border-radius: 10px; }
@@ -41,16 +48,18 @@
 </head>
 <body class="h-full bg-gradient-to-br from-ai-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-black text-slate-800 dark:text-slate-100 flex flex-col antialiased">
 
-  <!-- Launch Splash Screen -->
+  <!-- Splash Screen -->
   <div id="appSplash" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white">
-    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-fuchsia-500 flex items-center justify-center text-white shadow-2xl animate-bounce">
-      <i class="fa-solid fa-graduation-cap fa-xl"></i>
+    <div class="relative flex items-center justify-center">
+      <div class="w-24 h-24 rounded-3xl bg-gradient-to-tr from-indigo-600 via-fuchsia-500 to-rose-400 blur-xl opacity-70 animate-pulse"></div>
+      <div class="absolute w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 flex items-center justify-center text-white shadow-2xl splash-logo-anim">
+        <i class="fa-solid fa-graduation-cap fa-2x"></i>
+      </div>
     </div>
-    <h1 class="mt-4 text-lg font-bold bg-gradient-to-r from-indigo-300 to-fuchsia-300 bg-clip-text text-transparent">LeoJStudyLens AI</h1>
+    <h1 class="mt-6 text-xl font-bold tracking-wider bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-rose-300 bg-clip-text text-transparent">LeoJStudyLens AI</h1>
   </div>
 
-  <div aria-hidden class="blob left-0 top-0 w-80 h-80 bg-indigo-400 rounded-full -translate-x-1/3 -translate-y-1/3"></div>
-  <div aria-hidden class="blob right-0 bottom-12 w-96 h-96 bg-fuchsia-400 rounded-full translate-x-1/4 translate-y-1/4"></div>
+  <div aria-hidden class="blob left-0 top-0 w-80 h-80 bg-gradient-to-br from-indigo-400 via-fuchsia-400 to-rose-400 rounded-full -translate-x-1/3 -translate-y-1/3"></div>
 
   <!-- Header -->
   <header class="relative z-30">
@@ -61,16 +70,13 @@
         </div>
         <div>
           <div class="text-base font-bold tracking-tight">LeoJStudyLens AI</div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400">Pro Study Assistant & Notes Generator</div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400" id="uiSubtitle">AI-Powered Multilingual Study Assistant</div>
         </div>
       </div>
 
       <div class="flex items-center gap-2 sm:gap-3">
-        <button id="openApiKeyBtn" title="Set OpenAI API Key" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition">
-          <i class="fa-solid fa-key text-amber-500 mr-1"></i> <span id="apiKeyStatus">API Key</span>
-        </button>
-
-        <select id="langSelect" class="bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold px-2.5 py-2 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none">
+        <!-- Language Switcher Dropdown -->
+        <select id="langSelect" class="bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold px-2.5 py-2 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer">
           <option value="auto">🌐 Auto</option>
           <option value="en">🇺🇸 English</option>
           <option value="es">🇪🇸 Español</option>
@@ -80,51 +86,46 @@
           <option value="ja">🇯🇵 日本語</option>
         </select>
 
-        <button id="openChatBtn" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white shadow-lg hover:scale-105 active:scale-95 transition">
+        <button id="openChatBtn" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white shadow-lg hover:scale-105 transition">
           <i class="fa-solid fa-comments text-xs"></i>
-          <span class="text-xs font-semibold hidden sm:inline">Study Chat</span>
+          <span class="text-xs font-semibold hidden sm:inline" id="uiChatBtn">Study Chat</span>
         </button>
 
-        <button id="themeToggle" class="w-9 h-9 rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">
+        <button id="themeToggle" class="w-9 h-9 rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
           <i id="themeIcon" class="fa-solid fa-moon text-xs"></i>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Main Content Layout -->
+  <!-- Main Grid Layout -->
   <main class="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
-    
-    <!-- Input Section -->
     <section class="lg:col-span-6 bg-white/90 dark:bg-slate-800/90 rounded-3xl border border-slate-200 dark:border-slate-700 p-5 shadow-xl backdrop-blur-md flex flex-col justify-between">
       <div>
         <div class="flex items-start justify-between">
           <div>
-            <h3 class="font-bold text-slate-800 dark:text-slate-100">Study Material</h3>
-            <p class="text-xs text-slate-400 mt-0.5">Paste raw text, lecture notes, or articles.</p>
+            <h3 class="font-bold text-slate-800 dark:text-slate-100" id="uiSourceTitle">Study Material</h3>
+            <p class="text-xs text-slate-400 mt-0.5" id="uiSourceDesc">Paste notes, text, or articles in any language.</p>
           </div>
-          <div class="text-xs text-slate-400 text-right">
-            <div id="statsCount">0 words • 0 chars • ~0 min read</div>
-            <button id="clearInputBtn" class="mt-1 text-rose-500 text-xs font-semibold hover:underline">Clear</button>
-          </div>
+          <button id="clearInputBtn" class="text-rose-500 text-xs font-semibold hover:underline">Clear</button>
         </div>
 
-        <textarea id="sourceText" placeholder="Paste study material here..." class="mt-4 w-full min-h-[300px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 focus:border-indigo-500 outline-none resize-vertical text-sm transition"></textarea>
+        <textarea id="sourceText" placeholder="Paste study material here..." class="mt-4 w-full min-h-[320px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 outline-none text-sm leading-relaxed transition"></textarea>
 
-        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="mt-4 grid grid-cols-2 gap-3">
           <div>
-            <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Format</label>
+            <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold" id="uiFormatLabel">Format</label>
             <select id="formatSelect" class="mt-1 w-full rounded-xl p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs">
               <option value="exhaustive" selected>Exhaustive In-Depth Study Guide</option>
               <option value="bullets">Comprehensive Bullet Analysis</option>
-              <option value="definitions">Glossary & Conceptual Matrix</option>
-              <option value="exam">Full Exam Flashcards & Questions</option>
+              <option value="definitions">Key Glossary & Definitions</option>
+              <option value="exam">Exam Practice Questions & Answers</option>
             </select>
           </div>
           <div>
-            <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Detail Level</label>
+            <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold" id="uiConcisenessLabel">Depth</label>
             <select id="concisenessLevel" class="mt-1 w-full rounded-xl p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs">
-              <option value="max" selected>Maximum Expansion (Long Form)</option>
+              <option value="max" selected>Maximum Long-Form Expansion</option>
               <option value="comprehensive">Comprehensive</option>
               <option value="standard">Standard</option>
             </select>
@@ -132,15 +133,10 @@
         </div>
       </div>
 
-      <div class="mt-5 flex items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/50">
-        <label class="inline-flex items-center gap-2 text-xs cursor-pointer select-none">
-          <input id="aiToggle" type="checkbox" checked class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-          <span class="font-semibold text-slate-600 dark:text-slate-300">OpenAI Direct / Backend AI</span>
-        </label>
-
+      <div class="mt-5 flex items-center justify-end pt-3 border-t border-slate-100 dark:border-slate-700/50">
         <button id="generateBtn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white font-semibold text-xs shadow-xl hover:brightness-105 active:scale-95 transition">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
-          <span>Generate Study Notes</span>
+          <span id="uiGenerateBtn">Generate Extended Guide</span>
         </button>
       </div>
     </section>
@@ -149,74 +145,40 @@
     <section class="lg:col-span-6 bg-white/90 dark:bg-slate-800/90 rounded-3xl border border-slate-200 dark:border-slate-700 p-5 shadow-xl backdrop-blur-md flex flex-col">
       <div class="flex items-center justify-between">
         <div>
-          <h3 class="font-bold text-slate-800 dark:text-slate-100">Generated Study Notes</h3>
-          <p class="text-xs text-slate-400 mt-0.5">High-yield study points & long-form analysis.</p>
+          <h3 class="font-bold text-slate-800 dark:text-slate-100" id="uiNotesTitle">Generated Notes</h3>
+          <p class="text-xs text-slate-400 mt-0.5" id="uiNotesDesc">Results automatically translated to your selected target language.</p>
         </div>
-        <div id="outputActions" class="flex items-center gap-1.5 opacity-50 pointer-events-none transition-opacity">
-          <button id="copyBtn" title="Copy Notes" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-regular fa-copy"></i></button>
-          <button id="downloadTxtBtn" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-[11px] font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">.TXT</button>
-          <button id="downloadHtmlBtn" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-[11px] font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">.HTML</button>
-        </div>
+        <button id="copyBtn" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900 text-xs hover:bg-slate-200 transition"><i class="fa-regular fa-copy"></i></button>
       </div>
 
       <div id="emptyState" class="my-auto text-center py-12">
-        <div class="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
-          <i class="fa-solid fa-book-open fa-lg"></i>
-        </div>
-        <p class="text-xs text-slate-400 max-w-xs mx-auto">Paste study material and click generate to create long-form notes.</p>
+        <i class="fa-solid fa-book-open text-indigo-500 text-3xl mb-3"></i>
+        <p class="text-xs text-slate-400 max-w-xs mx-auto" id="uiEmptyMsg">Paste study material and click generate to process notes.</p>
       </div>
 
       <div id="loadingState" class="hidden my-auto text-center py-12">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-3 border-indigo-500 border-t-transparent mb-3"></div>
-        <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">Processing study material...</p>
+        <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">Generating notes in target language...</p>
       </div>
 
-      <div id="resultContent" class="hidden mt-4 space-y-4 text-slate-700 dark:text-slate-200 overflow-y-auto max-h-[580px] custom-scrollbar text-sm pr-1"></div>
+      <div id="resultContent" class="hidden mt-4 space-y-4 text-slate-700 dark:text-slate-200 overflow-y-auto max-h-[600px] custom-scrollbar text-sm pr-1"></div>
     </section>
   </main>
 
-  <!-- API Key Modal -->
-  <div id="apiKeyModal" class="fixed inset-0 z-[70] hidden flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4">
-    <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
-      <h3 class="font-bold text-base text-slate-800 dark:text-slate-100 flex items-center gap-2">
-        <i class="fa-solid fa-key text-amber-500"></i> OpenAI Key Configuration
-      </h3>
-      <p class="text-xs text-slate-400 mt-1">Enter your API key below to send requests directly from your browser.</p>
-
-      <input id="userApiKeyInput" type="password" placeholder="sk-proj-..." class="mt-4 w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs outline-none focus:border-indigo-500" />
-
-      <div class="mt-4 flex items-center justify-end gap-2">
-        <button id="clearApiKeyBtn" class="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 text-xs font-semibold hover:bg-rose-100 transition">Clear</button>
-        <button id="saveApiKeyBtn" class="px-4 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition">Save Key</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Chat Modal -->
   <div id="chatModal" class="fixed inset-0 z-[60] hidden flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4">
-    <div class="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col h-[82vh]">
-      <div class="flex items-center justify-between p-4 px-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow-md">
-            <i class="fa-solid fa-sparkles text-xs"></i>
-          </div>
-          <div>
-            <div class="font-bold text-sm text-slate-800 dark:text-slate-100">Study Partner</div>
-            <div class="text-[11px] text-slate-400">Multilingual Academic Assistant</div>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <button id="clearChatBtn" class="p-1.5 text-slate-400 hover:text-rose-500 transition text-xs"><i class="fa-solid fa-trash-can"></i></button>
-          <button id="closeChatBtn" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
-        </div>
+    <div class="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col h-[85vh]">
+      <div class="flex items-center justify-between p-4 px-5 border-b border-slate-100 dark:border-slate-800">
+        <div class="font-bold text-sm text-slate-800 dark:text-slate-100">Study Partner</div>
+        <button id="closeChatBtn" class="text-slate-400 hover:text-slate-600 text-xs"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
-      <div id="chatPane" class="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3 bg-slate-50/30 dark:bg-slate-950/30 custom-scrollbar"></div>
+      <div id="chatPane" class="p-4 flex-1 overflow-y-auto space-y-3 bg-slate-50/30 dark:bg-slate-950/30 custom-scrollbar"></div>
 
-      <div class="p-3.5 px-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <div class="flex items-end gap-2 bg-slate-50 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700/80">
-          <textarea id="chatInput" rows="1" class="flex-1 max-h-28 bg-transparent px-3 py-1.5 text-xs outline-none resize-none text-slate-800 dark:text-slate-100 placeholder-slate-400" placeholder="Ask a question or request a review..."></textarea>
-          <button id="sendChatBtn" class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition">
+      <div class="p-3.5 px-5 border-t border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <textarea id="chatInput" rows="1" class="flex-1 max-h-28 bg-transparent px-3 py-1.5 text-xs outline-none resize-none text-slate-800 dark:text-slate-100" placeholder="Ask a question..."></textarea>
+          <button id="sendChatBtn" class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow-md">
             <i class="fa-solid fa-paper-plane text-[10px]"></i>
           </button>
         </div>
@@ -224,9 +186,7 @@
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="fixed bottom-6 right-6 z-[80] transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
-    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 dark:text-emerald-600"></i>
+  <div id="toast" class="fixed bottom-6 right-6 z-[70] transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
     <span id="toastMsg" class="text-xs font-semibold">Notification</span>
   </div>
 
@@ -237,54 +197,49 @@
         if (splash) { splash.style.opacity = '0'; setTimeout(() => splash.style.display = 'none', 600); }
       }, 800);
 
+      const translations = {
+        en: { subtitle: "AI-Powered Study Assistant", chatBtn: "Study Chat", sourceTitle: "Study Material", sourceDesc: "Paste notes or text in any language.", format: "Format", conciseness: "Depth", generate: "Generate Extended Guide", notesTitle: "Generated Notes", notesDesc: "Adapted to target language automatically.", empty: "Paste material and click generate to create notes." },
+        es: { subtitle: "Asistente de Estudio IA", chatBtn: "Chat de Estudio", sourceTitle: "Material de Estudio", sourceDesc: "Pega notas o texto en cualquier idioma.", format: "Formato", conciseness: "Profundidad", generate: "Generar Guía Completa", notesTitle: "Notas Generadas", notesDesc: "Traducido e interpretado al idioma seleccionado.", empty: "Pega el material y haz clic en generar." },
+        fr: { subtitle: "Assistant d'Étude IA", chatBtn: "Chat d'Étude", sourceTitle: "Matériel d'Étude", sourceDesc: "Collez des notes ou du texte.", format: "Format", conciseness: "Profondeur", generate: "Générer le Guide Détaillé", notesTitle: "Notes Générées", notesDesc: "Généré automatiquement dans la langue cible.", empty: "Collez le matériel et cliquez sur générer." },
+        de: { subtitle: "KI-Lernassistent", chatBtn: "Lern-Chat", sourceTitle: "Lernmaterial", sourceDesc: "Fügen Sie Notizen oder Text ein.", format: "Format", conciseness: "Tiefe", generate: "Ausführliche Notizen Erstellen", notesTitle: "Erstellte Notizen", notesDesc: "Automatisch in die Zielsprache übersetzt.", empty: "Material einfügen und auf Erstellen klicken." },
+        zh: { subtitle: "AI 智能学习助手", chatBtn: "学习 AI 对话", sourceTitle: "学习资料", sourceDesc: "粘贴任何语言的笔记或文章。", format: "格式", conciseness: "深度", generate: "生成长篇学习指南", notesTitle: "生成的笔记", notesDesc: "已自动翻译并调整为目标语言。", empty: "粘贴资料并点击生成按钮。" },
+        ja: { subtitle: "AI 学習アシスタント", chatBtn: "学習チャット", sourceTitle: "学習教材", sourceDesc: "テキストを貼り付けてください。", format: "フォーマット", conciseness: "深度", generate: "詳細ガイドを作成", notesTitle: "作成されたノート", notesDesc: "対象言語に自動調整されます。", empty: "テキストを貼り付けて作成をクリックしてください。" }
+      };
+
+      const langSelect = document.getElementById('langSelect');
+
+      function detectTargetLanguage() {
+        if (langSelect.value !== 'auto') return langSelect.value;
+        const navLang = (navigator.language || navigator.userLanguage || 'en').substring(0, 2);
+        return translations[navLang] ? navLang : 'en';
+      }
+
+      function updateLanguageUI() {
+        const targetLang = detectTargetLanguage();
+        const t = translations[targetLang] || translations.en;
+
+        document.getElementById('uiSubtitle').textContent = t.subtitle;
+        document.getElementById('uiChatBtn').textContent = t.chatBtn;
+        document.getElementById('uiSourceTitle').textContent = t.sourceTitle;
+        document.getElementById('uiSourceDesc').textContent = t.sourceDesc;
+        document.getElementById('uiFormatLabel').textContent = t.format;
+        document.getElementById('uiConcisenessLabel').textContent = t.conciseness;
+        document.getElementById('uiGenerateBtn').textContent = t.generate;
+        document.getElementById('uiNotesTitle').textContent = t.notesTitle;
+        document.getElementById('uiNotesDesc').textContent = t.notesDesc;
+        document.getElementById('uiEmptyMsg').textContent = t.empty;
+      }
+
+      langSelect.addEventListener('change', updateLanguageUI);
+      updateLanguageUI();
+
       const sourceText = document.getElementById('sourceText');
-      const statsCount = document.getElementById('statsCount');
-      const clearInputBtn = document.getElementById('clearInputBtn');
-      const formatSelect = document.getElementById('formatSelect');
-      const concisenessLevel = document.getElementById('concisenessLevel');
       const generateBtn = document.getElementById('generateBtn');
-      const aiToggle = document.getElementById('aiToggle');
       const emptyState = document.getElementById('emptyState');
       const loadingState = document.getElementById('loadingState');
       const resultContent = document.getElementById('resultContent');
-      const outputActions = document.getElementById('outputActions');
-      const copyBtn = document.getElementById('copyBtn');
-      const downloadTxtBtn = document.getElementById('downloadTxtBtn');
-      const downloadHtmlBtn = document.getElementById('downloadHtmlBtn');
-      const themeToggle = document.getElementById('themeToggle');
-      const themeIcon = document.getElementById('themeIcon');
-      const openChatBtn = document.getElementById('openChatBtn');
-      const chatModal = document.getElementById('chatModal');
-      const closeChatBtn = document.getElementById('closeChatBtn');
-      const chatPane = document.getElementById('chatPane');
-      const chatInput = document.getElementById('chatInput');
-      const sendChatBtn = document.getElementById('sendChatBtn');
-      const clearChatBtn = document.getElementById('clearChatBtn');
-      const openApiKeyBtn = document.getElementById('openApiKeyBtn');
-      const apiKeyModal = document.getElementById('apiKeyModal');
-      const userApiKeyInput = document.getElementById('userApiKeyInput');
-      const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
-      const clearApiKeyBtn = document.getElementById('clearApiKeyBtn');
-      const apiKeyStatus = document.getElementById('apiKeyStatus');
-      const langSelect = document.getElementById('langSelect');
       const toast = document.getElementById('toast');
       const toastMsg = document.getElementById('toastMsg');
-
-      let lastGeneratedText = '';
-      let lastHtmlOutput = '';
-
-      /* --- Theme Control --- */
-      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-        themeIcon.className = 'fa-solid fa-sun text-xs';
-      }
-
-      themeToggle.addEventListener('click', () => {
-        document.documentElement.classList.toggle('dark');
-        const isDark = document.documentElement.classList.contains('dark');
-        localStorage.theme = isDark ? 'dark' : 'light';
-        themeIcon.className = isDark ? 'fa-solid fa-sun text-xs' : 'fa-solid fa-moon text-xs';
-      });
 
       function showToast(msg) {
         toastMsg.textContent = msg;
@@ -308,233 +263,53 @@
         return `<div class="chat-prose space-y-2 text-xs sm:text-sm leading-relaxed">${formatted}</div>`;
       }
 
-      function updateStats() {
-        const text = sourceText.value;
-        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-        statsCount.textContent = `${words.toLocaleString()} words • ${text.length.toLocaleString()} chars`;
-      }
-      sourceText.addEventListener('input', updateStats);
-      clearInputBtn.addEventListener('click', () => { sourceText.value = ''; updateStats(); showToast('Workspace cleared.'); });
-
-      /* --- API Key Local Storage Management --- */
-      function checkApiKey() {
-        const key = localStorage.getItem('user_openai_api_key');
-        if (key) {
-          apiKeyStatus.textContent = 'Key Saved';
-          userApiKeyInput.value = key;
-        } else {
-          apiKeyStatus.textContent = 'API Key';
-        }
-      }
-      checkApiKey();
-
-      openApiKeyBtn.addEventListener('click', () => apiKeyModal.classList.remove('hidden'));
-      saveApiKeyBtn.addEventListener('click', () => {
-        const val = userApiKeyInput.value.trim();
-        if (val) {
-          localStorage.setItem('user_openai_api_key', val);
-          showToast('API key saved locally.');
-        } else {
-          localStorage.removeItem('user_openai_api_key');
-        }
-        checkApiKey();
-        apiKeyModal.classList.add('hidden');
-      });
-      clearApiKeyBtn.addEventListener('click', () => {
-        localStorage.removeItem('user_openai_api_key');
-        userApiKeyInput.value = '';
-        checkApiKey();
-        apiKeyModal.classList.add('hidden');
-        showToast('API key removed.');
-      });
-
-      /* --- Client API Dispatch --- */
-      async function callOpenAI(messages, maxTokens = 3000) {
-        const storedKey = localStorage.getItem('user_openai_api_key');
-
-        if (storedKey) {
-          const res = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${storedKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages: messages,
-              max_tokens: maxTokens
-            })
-          });
-
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error?.message || `OpenAI API Error (${res.status})`);
-          }
-          const data = await res.json();
-          return data.choices[0].message.content;
-        } else {
-          const res = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages, max_tokens: maxTokens })
-          });
-
-          if (!res.ok) {
-            throw new Error('Backend route unavailable and no local OpenAI key saved.');
-          }
-          const data = await res.json();
-          return data?.choices?.[0]?.message?.content || data?.content;
-        }
-      }
-
-      /* --- Local Processing Fallback --- */
-      function processNotesLocalExtended(text) {
-        const paragraphs = text.split(/\n+/).filter(p => p.trim().length > 0);
-        let sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-
-        let htmlOutput = `<h2 class="font-bold text-indigo-600 dark:text-indigo-400 text-base mb-3 border-b border-indigo-200 pb-1">Exhaustive Academic Study Guide (Offline Mode)</h2>`;
-        let rawTextOutput = `COMPREHENSIVE ACADEMIC BREAKDOWN\n====================================\n\n`;
-
-        htmlOutput += `<h3 class="font-bold text-indigo-600 dark:text-indigo-400 text-sm mt-4 mb-2">1. Overview</h3>`;
-        htmlOutput += `<p class="bg-slate-50 dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 mb-4">${escapeHtml(paragraphs.join(' '))}</p>`;
-        
-        rawTextOutput += `1. OVERVIEW:\n${paragraphs.join(' ')}\n\n`;
-
-        htmlOutput += `<h3 class="font-bold text-indigo-600 dark:text-indigo-400 text-sm mt-4 mb-2">2. Key Points</h3><ul class="space-y-2 pl-4 list-disc mb-4">`;
-        sentences.forEach((s, idx) => {
-          htmlOutput += `<li><strong>Point ${idx + 1}:</strong> ${escapeHtml(s.trim())}</li>`;
-          rawTextOutput += `- Point ${idx + 1}: ${s.trim()}\n`;
+      async function callBackendAPI(messages) {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages, max_tokens: 4000 })
         });
-        htmlOutput += `</ul>`;
 
-        return { htmlOutput, rawTextOutput };
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Server HTTP Error (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data?.choices?.[0]?.message?.content || data?.content || 'No output.';
       }
 
-      /* --- Generation Handler --- */
       generateBtn.addEventListener('click', async () => {
         const text = sourceText.value.trim();
         if (!text) return showToast('Please enter study material first.');
 
         emptyState.classList.add('hidden');
-        loadingState.classList.remove('hidden');
         resultContent.classList.add('hidden');
+        loadingState.classList.remove('hidden');
 
-        const targetLang = langSelect.value === 'auto' ? (navigator.language || 'en').substring(0, 2) : langSelect.value;
-        const systemPrompt = `You are a world-class academic tutor. Create an exhaustive, highly detailed study guide.
-Structure into 5 main sections:
-1. ## Executive Overview
-2. ## Comprehensive Concept Breakdown
-3. ## Key Takeaways & Supporting Details
-4. ## Terminology & Definitions
-5. ## Review Questions with Answers
+        const targetLang = detectTargetLanguage();
 
-Respond in language code: "${targetLang}". Do not summarize briefly; expand thoroughly on all details.`;
+        // Target language is explicitly commanded to the model
+        const systemPrompt = `You are a world-class academic study assistant.
+STRICT MANDATE: You MUST write the complete response ONLY in language code: "${targetLang}".
+Translate and adapt all content from the source material into "${targetLang}" fully.
+Provide an exhaustive, long-form study guide with 5 distinct Markdown sections (## Overview, ## Breakdown, ## Detailed Takeaways, ## Key Definitions, ## Exam Questions).`;
 
-        if (aiToggle.checked) {
-          try {
-            const reply = await callOpenAI([
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: `Material:\n\n${text}` }
-            ], 3500);
-
-            lastGeneratedText = reply;
-            lastHtmlOutput = formatMarkdown(reply);
-          } catch (err) {
-            showToast('AI Request Failed. Running local generator.');
-            const localRes = processNotesLocalExtended(text);
-            lastGeneratedText = localRes.rawTextOutput;
-            lastHtmlOutput = localRes.htmlOutput;
-          }
-        } else {
-          const localRes = processNotesLocalExtended(text);
-          lastGeneratedText = localRes.rawTextOutput;
-          lastHtmlOutput = localRes.htmlOutput;
+        try {
+          const output = await callBackendAPI([
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Source Text:\n${text}` }
+          ]);
+          resultContent.innerHTML = formatMarkdown(output);
+        } catch (err) {
+          showToast('API call failed.');
         }
 
         loadingState.classList.add('hidden');
-        resultContent.innerHTML = lastHtmlOutput;
         resultContent.classList.remove('hidden');
-        outputActions.classList.remove('opacity-50', 'pointer-events-none');
       });
 
-      /* --- Chat History and Setup --- */
-      function loadChatHistory() { try { return JSON.parse(localStorage.getItem('openai_chat_history')||'[]'); } catch(e){ return []; } }
-      function saveChatHistory(h){ localStorage.setItem('openai_chat_history', JSON.stringify(h||[])); }
-
-      function renderChat() {
-        const history = loadChatHistory();
-        chatPane.innerHTML = '';
-        if (history.length === 0) {
-          chatPane.innerHTML = '<p class="text-center text-slate-400 my-8 text-xs">Ask any question to begin.</p>';
-          return;
-        }
-        history.forEach((m) => {
-          const isUser = m.role === 'user';
-          const msgDiv = document.createElement('div');
-          msgDiv.className = isUser ? 'flex justify-end' : 'flex justify-start';
-          msgDiv.innerHTML = `<div class="max-w-[85%] p-3 rounded-2xl text-xs ${isUser ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100'}">${isUser ? escapeHtml(m.content) : formatMarkdown(m.content)}</div>`;
-          chatPane.appendChild(msgDiv);
-        });
-        chatPane.scrollTop = chatPane.scrollHeight;
-      }
-
-      openChatBtn.addEventListener('click', () => { chatModal.classList.remove('hidden'); renderChat(); });
-      closeChatBtn.addEventListener('click', () => chatModal.classList.add('hidden'));
-      clearChatBtn.addEventListener('click', () => { saveChatHistory([]); renderChat(); });
-
-      async function sendChatMessage() {
-        const text = chatInput.value.trim();
-        if (!text) return;
-
-        chatInput.value = '';
-        const history = loadChatHistory();
-        history.push({ role: 'user', content: text });
-        saveChatHistory(history);
-        renderChat();
-
-        const msgs = [{ role: 'system', content: 'You are a helpful academic study tutor.' }];
-        if (sourceText.value.trim()) {
-          msgs.push({ role: 'user', content: `[CONTEXT MATERIAL]\n${sourceText.value.trim()}` });
-        }
-        msgs.push(...history.slice(-6));
-
-        try {
-          const reply = await callOpenAI(msgs, 2000);
-          history.push({ role: 'assistant', content: reply });
-          saveChatHistory(history);
-          renderChat();
-        } catch (err) {
-          showToast('Failed to connect to AI.');
-        }
-      }
-
-      sendChatBtn.addEventListener('click', sendChatMessage);
-      chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
-
-      /* Exports */
-      copyBtn.addEventListener('click', () => {
-        if (!lastGeneratedText) return;
-        navigator.clipboard.writeText(lastGeneratedText);
-        showToast('Notes copied to clipboard!');
-      });
-
-      downloadTxtBtn.addEventListener('click', () => {
-        if (!lastGeneratedText) return;
-        const blob = new Blob([lastGeneratedText], { type: 'text/plain' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'study-guide.txt';
-        a.click();
-      });
-
-      downloadHtmlBtn.addEventListener('click', () => {
-        if (!lastGeneratedText) return;
-        const blob = new Blob([`<!DOCTYPE html><html><body style="font-family:sans-serif;padding:2rem;">${lastHtmlOutput}</body></html>`], { type: 'text/html' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'study-guide.html';
-        a.click();
-      });
+      document.getElementById('clearInputBtn').addEventListener('click', () => { sourceText.value = ''; });
     });
   </script>
 </body>
