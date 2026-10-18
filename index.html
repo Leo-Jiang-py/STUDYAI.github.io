@@ -54,8 +54,10 @@
       100% { transform: scale(1.08); opacity: 1; }
     }
 
-    /* Streaming token cursor animation */
-    .streaming-output { white-space: pre-wrap; word-break: break-word; }
+    /* Streaming token animation and cursor */
+    .streaming-output { white-space: pre-wrap; word-break: break-word; font-family: inherit; }
+    .streaming-token { display: inline-block; opacity: 0; transform: translateY(6px); transition: opacity 160ms ease, transform 200ms ease; }
+    .streaming-token.show { opacity: 1; transform: translateY(0); }
     .streaming-cursor { display: inline-block; width: 8px; height: 1.1em; background: #7c3aed; margin-left: 4px; vertical-align: middle; border-radius: 2px; animation: blink 0.8s infinite; }
     @keyframes blink { 50% { opacity: 0; } }
 
@@ -514,6 +516,51 @@
         chatInput.style.height = `${Math.min(chatInput.scrollHeight, 112)}px`;
       });
 
+      /* --- Streaming Buffer Container --- */
+      function createStreamContainer() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'streaming-output text-xs sm:text-sm';
+        const content = document.createElement('div');
+        content.className = 'streaming-output';
+        const cursor = document.createElement('span');
+        cursor.className = 'streaming-cursor';
+        wrapper.appendChild(content);
+        wrapper.appendChild(cursor);
+
+        let tokenBuffer = [];
+        let flushTimeout = null;
+
+        function flushNow() {
+          if (!tokenBuffer.length) return;
+          const chunk = tokenBuffer.join('');
+          tokenBuffer = [];
+          const span = document.createElement('span');
+          span.className = 'streaming-token';
+          span.textContent = chunk;
+          content.appendChild(span);
+          void span.offsetWidth;
+          span.classList.add('show');
+          wrapper.scrollIntoView({ block: 'nearest' });
+        }
+
+        function pushToken(tok) {
+          tokenBuffer.push(tok);
+          if (flushTimeout) return;
+          flushTimeout = setTimeout(() => {
+            flushNow();
+            flushTimeout = null;
+          }, 40);
+        }
+
+        function finish() {
+          if (flushTimeout) { clearTimeout(flushTimeout); flushTimeout = null; }
+          flushNow();
+          if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+        }
+
+        return { wrapper, content, cursor, pushToken, finish };
+      }
+
       /* --- Direct API & Streaming Call --- */
       function buildMessages(userText) {
         const selectedLang = langSelect.value === 'auto' ? detectBrowserLanguage() : langSelect.value;
@@ -568,13 +615,8 @@
         const bubble = document.createElement('div');
         bubble.className = 'max-w-[88%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-700/80 shadow-sm text-xs';
         
-        const contentContainer = document.createElement('div');
-        contentContainer.className = 'streaming-output leading-relaxed';
-        const cursor = document.createElement('span');
-        cursor.className = 'streaming-cursor';
-
-        bubble.appendChild(contentContainer);
-        bubble.appendChild(cursor);
+        const streamContainer = createStreamContainer();
+        bubble.appendChild(streamContainer.wrapper);
         msgDiv.appendChild(bubble);
         chatPane.appendChild(msgDiv);
         chatPane.scrollTop = chatPane.scrollHeight;
@@ -585,7 +627,7 @@
           const apiKey = getStoredApiKey();
           if (apiKey) {
             accumulatedText = await openAIRequestDirect({ messages: msgs, model: chatModel.value });
-            cursor.remove();
+            streamContainer.finish();
             bubble.innerHTML = formatMarkdown(accumulatedText);
             appendToChat('assistant', accumulatedText);
           } else {
@@ -603,17 +645,18 @@
             while (true) {
               const { value, done } = await reader.read();
               if (done) break;
-              accumulatedText += decoder.decode(value);
-              contentContainer.textContent = accumulatedText;
+              const tok = decoder.decode(value);
+              accumulatedText += tok;
+              streamContainer.pushToken(tok);
               chatPane.scrollTop = chatPane.scrollHeight;
             }
 
-            cursor.remove();
+            streamContainer.finish();
             bubble.innerHTML = formatMarkdown(accumulatedText);
             appendToChat('assistant', accumulatedText);
           }
         } catch (err) {
-          cursor.remove();
+          streamContainer.finish();
           bubble.innerHTML = `<span class="text-rose-500 font-medium">Chat error: ${escapeHtml(err.message)}</span>`;
           showToast('Chat request failed');
         }
@@ -627,23 +670,81 @@
         } 
       });
 
-      /* --- Local Summarizer Fallback --- */
-      function processLocalNotes(text, format, level) {
-        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+      /* --- Expanded Multi-Format Local Summarizer --- */
+      function processNotes(text, format, level) {
+        const paragraphs = text.split(/\n+/).filter(p => p.trim().length > 0);
+        let sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+        sentences = sentences.map(s => s.trim()).filter(s => s.length > 8);
+
+        let countMultiplier = 5;
+        if (level === 'ultra') countMultiplier = 3;
+        if (level === 'comprehensive') countMultiplier = 10;
+
+        const words = text.split(/\s+/);
+        const capitalizedPhrases = [];
+        for (let i = 0; i < words.length - 1; i++) {
+          if (words[i][0] && words[i][0] === words[i][0].toUpperCase() && words[i].length > 3 && /^[A-Z]/.test(words[i])) {
+            capitalizedPhrases.push(words[i].replace(/[^a-zA-Z]/g, ''));
+          }
+        }
+        const uniqueKeywords = [...new Set(capitalizedPhrases)];
+
         let htmlOutput = '';
         let rawTextOutput = '';
 
         if (format === 'bullets') {
-          htmlOutput = `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2 text-xs uppercase tracking-wider">Key Bullet Points</h4><ul class="space-y-1.5 pl-4 list-disc text-xs">`;
-          sentences.slice(0, 5).forEach(s => {
-            htmlOutput += `<li>${escapeHtml(s.trim())}</li>`;
-            rawTextOutput += `- ${s.trim()}\n`;
+          const highlights = sentences.slice(0, Math.min(countMultiplier * 2, Math.max(3, Math.floor(sentences.length))));
+          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2 uppercase tracking-wide text-xs">Core Bullet Summary (${level.toUpperCase()})</h4>`;
+          htmlOutput += `<ul class="space-y-1.5 pl-4 list-disc marker:text-indigo-500 text-xs sm:text-sm">`;
+          rawTextOutput += `CORE BULLET SUMMARY (${level.toUpperCase()}):\n`;
+          highlights.forEach(s => { htmlOutput += `<li>${escapeHtml(s)}</li>`; rawTextOutput += `- ${s}\n`; });
+          htmlOutput += `</ul>`;
+        } else if (format === 'definitions') {
+          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2.5 uppercase tracking-wide text-xs">Key Definitions & Concepts</h4>`;
+          htmlOutput += `<div class="grid gap-2.5">`;
+          rawTextOutput += `KEY DEFINITIONS & CONCEPTS:\n`;
+
+          const termsToUse = uniqueKeywords.length > 0 ? uniqueKeywords : ['Primary Subject', 'Core Principle', 'Key Variable', 'Mechanism'];
+          termsToUse.slice(0, countMultiplier + 2).forEach((term, idx) => {
+            const relatedSentence = sentences[idx % sentences.length] || 'Essential concept identified within the source material.';
+            htmlOutput += `
+              <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                <span class="font-semibold text-indigo-600 dark:text-indigo-400 block mb-1 text-xs">${escapeHtml(term)}</span>
+                <span class="text-slate-600 dark:text-slate-300 text-xs sm:text-sm">${escapeHtml(relatedSentence)}</span>
+              </div>
+            `;
+            rawTextOutput += `• ${term}: ${relatedSentence}\n`;
           });
-          htmlOutput += '</ul>';
-        } else {
-          htmlOutput = `<div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-xs leading-relaxed">${escapeHtml(text.substring(0, 500))}...</div>`;
-          rawTextOutput = text.substring(0, 500);
+          htmlOutput += `</div>`;
+        } else if (format === 'summary') {
+          const paraCount = level === 'ultra' ? 1 : (level === 'comprehensive' ? 4 : 2);
+          const summaryParagraphs = paragraphs.slice(0, paraCount).join('\n\n');
+          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2 uppercase tracking-wide text-xs">TL;DR Summary Paragraph</h4>`;
+          htmlOutput += `<p class="leading-relaxed text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs sm:text-sm">${escapeHtml(summaryParagraphs || text.substring(0,400))}</p>`;
+          rawTextOutput += `TL;DR SUMMARY:\n${summaryParagraphs || text.substring(0, 400)}`;
+        } else if (format === 'exam') {
+          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2.5 uppercase tracking-wide text-xs">Exam Q&A Flashcards</h4>`;
+          htmlOutput += `<div class="space-y-2.5">`;
+          rawTextOutput += `EXAM Q&A FLASHCARDS:\n`;
+
+          const sampleQuestions = [
+            { q: 'What is the primary objective or main topic discussed?', a: sentences[0] || 'Core premise of the text.' },
+            { q: 'What key mechanism or supporting factor drives this concept?', a: sentences[1] || 'Supporting structural detail.' },
+            { q: 'What crucial implication or relationship is highlighted?', a: sentences[2] || 'Key takeaway from the material.' }
+          ];
+
+          sampleQuestions.forEach((qa, i) => {
+            htmlOutput += `
+              <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                <div class="font-semibold text-indigo-600 dark:text-indigo-400 text-xs mb-1">Q${i+1}: ${escapeHtml(qa.q)}</div>
+                <div class="text-slate-600 dark:text-slate-300 text-xs sm:text-sm"><strong>A:</strong> ${escapeHtml(qa.a)}</div>
+              </div>
+            `;
+            rawTextOutput += `Q${i+1}: ${qa.q}\nA: ${qa.a}\n\n`;
+          });
+          htmlOutput += `</div>`;
         }
+
         return { htmlOutput, rawTextOutput };
       }
 
@@ -673,7 +774,7 @@
             lastGeneratedText = aiResult;
             lastHtmlOutput = formatMarkdown(aiResult);
           } else {
-            const localRes = processLocalNotes(text, format, level);
+            const localRes = processNotes(text, format, level);
             lastGeneratedText = localRes.rawTextOutput;
             lastHtmlOutput = localRes.htmlOutput;
           }
