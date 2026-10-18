@@ -1,31 +1,26 @@
 export default async function handler(req, res) {
-  // CORS Headers
+  // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'OPENAI_API_KEY is not configured in Vercel Environment Variables.' });
+    return res.status(500).json({ error: 'OPENAI_API_KEY is missing on Vercel.' });
   }
 
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    const messages = Array.isArray(body.messages) ? body.messages : [{ role: 'user', content: body.prompt || '' }];
-    const max_tokens = body.max_tokens || 4000;
-    const model = body.model || 'gpt-4o-mini';
+    const { messages, max_tokens = 3500 } = req.body || {};
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -34,7 +29,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model,
+        model: 'gpt-4o-mini',
         messages,
         max_tokens,
         temperature: 0.4,
@@ -42,16 +37,8 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-
-    if (!response.ok) {
-      return res.status(response.status).json({ 
-        error: data.error?.message || 'OpenAI API call failed.',
-        details: data 
-      });
-    }
-
-    return res.status(200).json(data);
-  } catch (error) {
-    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    return res.status(response.status).json(data);
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 }
