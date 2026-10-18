@@ -56,7 +56,7 @@
         </div>
         <div>
           <div class="text-sm font-bold tracking-tight">LeoJStudyLens AI</div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400">Long-Form AI Study Notes Engine</div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400">Notes Engine & Interactive Study Assistant</div>
         </div>
       </div>
 
@@ -70,6 +70,11 @@
           <option value="zh">🇨🇳 中文</option>
           <option value="ja">🇯🇵 日本語</option>
         </select>
+
+        <button id="openChatBtn" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white shadow-md hover:opacity-90 active:scale-95 transition">
+          <i class="fa-solid fa-comments text-xs"></i>
+          <span class="text-xs font-semibold hidden sm:inline">Study Chat</span>
+        </button>
 
         <button id="setApiKeyBtn" class="px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-semibold hover:bg-amber-500/20 transition">
           <i class="fa-solid fa-key mr-1"></i> API Key
@@ -151,6 +156,40 @@
     </section>
   </main>
 
+  <!-- Interactive AI Study Chat Modal -->
+  <div id="chatModal" class="fixed inset-0 z-[60] hidden flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4">
+    <div class="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col h-[82vh]">
+      <div class="flex items-center justify-between p-4 px-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow-md">
+            <i class="fa-solid fa-comments text-xs"></i>
+          </div>
+          <div>
+            <div class="font-bold text-sm text-slate-800 dark:text-slate-100">Study Partner Chat</div>
+            <div class="text-[11px] text-slate-400">Ask questions, request quizzes, or get explanations</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="clearChatBtn" title="Clear Chat History" class="p-1.5 text-slate-400 hover:text-rose-500 transition text-xs"><i class="fa-solid fa-trash-can"></i></button>
+          <button id="closeChatBtn" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+
+      <!-- Chat Stream Container -->
+      <div id="chatPane" class="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3 bg-slate-50/30 dark:bg-slate-950/30 custom-scrollbar"></div>
+
+      <!-- Input Area -->
+      <div class="p-3.5 px-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div class="flex items-end gap-2 bg-slate-50 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700/80">
+          <textarea id="chatInput" rows="1" class="flex-1 max-h-28 bg-transparent px-3 py-1.5 text-xs outline-none resize-none text-slate-800 dark:text-slate-100 placeholder-slate-400" placeholder="Ask a question about your study material..."></textarea>
+          <button id="sendChatBtn" class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition">
+            <i class="fa-solid fa-paper-plane text-[10px]"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs">
     <span id="toastMsg">Notification</span>
   </div>
@@ -173,6 +212,15 @@
       const toastMsg = document.getElementById('toastMsg');
       const setApiKeyBtn = document.getElementById('setApiKeyBtn');
       const modeSelect = document.getElementById('modeSelect');
+
+      /* Chat Elements */
+      const openChatBtn = document.getElementById('openChatBtn');
+      const closeChatBtn = document.getElementById('closeChatBtn');
+      const chatModal = document.getElementById('chatModal');
+      const chatPane = document.getElementById('chatPane');
+      const chatInput = document.getElementById('chatInput');
+      const sendChatBtn = document.getElementById('sendChatBtn');
+      const clearChatBtn = document.getElementById('clearChatBtn');
 
       let rawOutputText = '';
       let htmlFormattedOutput = '';
@@ -220,7 +268,7 @@
           const res = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${directKey}` },
-            body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: 4000, temperature: 0.3 })
+            body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: 3500, temperature: 0.4 })
           });
           if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error?.message || 'Direct API call failed.'); }
           const data = await res.json();
@@ -230,7 +278,7 @@
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages, max_tokens: 4000, temperature: 0.3 })
+          body: JSON.stringify({ messages, max_tokens: 3500, temperature: 0.4 })
         });
 
         if (!response.ok) {
@@ -242,6 +290,7 @@
         return data?.choices?.[0]?.message?.content || data?.content || 'No output received.';
       }
 
+      /* AI Summarizer Generator */
       generateBtn.addEventListener('click', async () => {
         const text = sourceText.value.trim();
         if (!text) return showToast('Please enter study material first.');
@@ -253,18 +302,17 @@
         const targetLang = detectTargetLang();
         const mode = modeSelect.value;
 
-        const systemPrompt = `You are a world-class professor creating an EXhaustive, extremely detailed study guide.
-Your objective is to extract EVERY SINGLE main idea, supporting fact, definition, and concept from the source text and expand upon it comprehensively.
+        const systemPrompt = `You are a world-class professor creating an EXHAUSTIVE, extremely detailed study guide.
+Extract EVERY SINGLE main idea, supporting fact, definition, and concept from the source text and expand upon it comprehensively.
 
-Structure your output into 5 mandatory sections using Markdown headers (## and ###):
-1. ## Executive Overview & Core Premises (Comprehensive analysis of main themes)
-2. ## Exhaustive Concept Breakdown (In-depth analysis of every topic)
-3. ## Granular Key Takeaways & Supporting Details (Extensive bullet list)
-4. ## Glossary of Essential Terminology & Definitions
-5. ## Review Suite & Exam Practice Questions (With detailed step-by-step answers)
+Structure into 5 mandatory sections using Markdown headers (## and ###):
+1. ## Executive Overview & Core Premises
+2. ## Exhaustive Concept Breakdown
+3. ## Granular Key Takeaways & Supporting Details
+4. ## Glossary of Essential Terminology
+5. ## Review Suite & Exam Practice Questions
 
 STRICT MANDATE:
-- DO NOT summarize briefly or skip details.
 - Expand fully on all points using clear, academic explanations.
 - Output MUST be written strictly in target language code: "${targetLang}".
 - Mode emphasis: "${mode}".`;
@@ -289,6 +337,82 @@ STRICT MANDATE:
         loadingState.classList.add('hidden');
       });
 
+      /* --- Interactive Study Chat Engine --- */
+      function loadChatHistory() { try { return JSON.parse(localStorage.getItem('study_chat_history')||'[]'); } catch(e){ return []; } }
+      function saveChatHistory(h){ localStorage.setItem('study_chat_history', JSON.stringify(h||[])); }
+
+      function renderChat() {
+        const history = loadChatHistory();
+        chatPane.innerHTML = '';
+
+        if (history.length === 0) {
+          chatPane.innerHTML = `
+            <div class="text-center py-10">
+              <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-2">
+                <i class="fa-solid fa-comments text-sm"></i>
+              </div>
+              <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Start your study conversation</p>
+              <p class="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">Ask questions, request custom quizzes, or demand deeper explanations.</p>
+            </div>`;
+          return;
+        }
+
+        history.forEach((m) => {
+          const isUser = m.role === 'user';
+          const msgDiv = document.createElement('div');
+          msgDiv.className = isUser ? 'flex justify-end' : 'flex justify-start';
+
+          const bubble = document.createElement('div');
+          bubble.className = isUser 
+            ? 'max-w-[85%] bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white p-3 rounded-2xl text-xs'
+            : 'max-w-[88%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs';
+
+          bubble.innerHTML = isUser ? escapeHtml(m.content) : formatMarkdown(m.content);
+          msgDiv.appendChild(bubble);
+          chatPane.appendChild(msgDiv);
+        });
+        chatPane.scrollTop = chatPane.scrollHeight;
+      }
+
+      openChatBtn.addEventListener('click', () => { chatModal.classList.remove('hidden'); renderChat(); });
+      closeChatBtn.addEventListener('click', () => chatModal.classList.add('hidden'));
+      clearChatBtn.addEventListener('click', () => { saveChatHistory([]); renderChat(); });
+
+      async function sendChatMessage() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        chatInput.value = '';
+        const history = loadChatHistory();
+        history.push({ role: 'user', content: text });
+        saveChatHistory(history);
+        renderChat();
+
+        const targetLang = detectTargetLang();
+        const msgs = [
+          { role: 'system', content: `You are an expert academic tutor. Provide clear, detailed, and helpful answers. Respond strictly in language code: "${targetLang}".` }
+        ];
+
+        if (sourceText.value.trim()) {
+          msgs.push({ role: 'user', content: `[CURRENT SOURCE CONTEXT]\n${sourceText.value.trim()}` });
+        }
+
+        msgs.push(...history.slice(-8));
+
+        try {
+          const reply = await requestAI(msgs);
+          history.push({ role: 'assistant', content: reply });
+          saveChatHistory(history);
+          renderChat();
+        } catch (err) {
+          showToast('Failed to reach AI chat engine.');
+        }
+      }
+
+      sendChatBtn.addEventListener('click', sendChatMessage);
+      chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
+
+      /* Exports & Utilities */
       document.getElementById('clearInputBtn').addEventListener('click', () => { sourceText.value = ''; });
 
       document.getElementById('copyBtn').addEventListener('click', () => {
