@@ -56,7 +56,7 @@
         </div>
         <div>
           <div class="text-sm font-bold tracking-tight">LeoJStudyLens AI</div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400" id="uiSubtitle">AI-Powered Study Assistant</div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400">Long-Form AI Study Notes Engine</div>
         </div>
       </div>
 
@@ -88,19 +88,38 @@
       <div>
         <div class="flex items-start justify-between">
           <div>
-            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100" id="uiSourceTitle">Study Material</h3>
-            <p class="text-xs text-slate-400 mt-0.5" id="uiSourceDesc">Paste raw lecture notes, text, or articles.</p>
+            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100">Study Material</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Paste raw lecture notes, text, or articles.</p>
           </div>
           <button id="clearInputBtn" class="text-rose-500 text-xs font-semibold hover:underline">Clear</button>
         </div>
 
-        <textarea id="sourceText" placeholder="Paste material here..." class="mt-4 w-full min-h-[300px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none text-xs leading-relaxed transition"></textarea>
+        <textarea id="sourceText" placeholder="Paste study material here..." class="mt-4 w-full min-h-[300px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none text-xs leading-relaxed transition"></textarea>
+
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Mode</label>
+            <select id="modeSelect" class="mt-1 w-full rounded-xl p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
+              <option value="exhaustive" selected>Exhaustive Academic Guide</option>
+              <option value="bullets">Granular Bullet Analysis</option>
+              <option value="definitions">Glossary & Conceptual Matrix</option>
+              <option value="exam">Exam Practice Suite & Q&A</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Length Target</label>
+            <select id="lengthSelect" class="mt-1 w-full rounded-xl p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
+              <option value="max" selected>Maximum Long-Form (Exhaustive)</option>
+              <option value="standard">Standard Detailed Guide</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div class="mt-5 flex items-center justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
         <button id="generateBtn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white font-semibold text-xs shadow-lg hover:opacity-90 active:scale-95 transition">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
-          <span id="uiGenerateBtn">Generate Extended Guide</span>
+          <span>Summarize & Expand</span>
         </button>
       </div>
     </section>
@@ -108,20 +127,24 @@
     <section class="lg:col-span-6 bg-white/90 dark:bg-slate-900/90 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xl flex flex-col">
       <div class="flex items-center justify-between">
         <div>
-          <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100" id="uiNotesTitle">Generated Notes</h3>
-          <p class="text-xs text-slate-400 mt-0.5" id="uiNotesDesc">Extended analysis translated to target language.</p>
+          <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100">AI Generated Study Guide</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Exhaustive breakdown in selected target language.</p>
         </div>
-        <button id="copyBtn" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs hover:bg-slate-200 transition"><i class="fa-regular fa-copy"></i></button>
+        <div id="exportActions" class="flex items-center gap-1.5 opacity-50 pointer-events-none transition-opacity">
+          <button id="copyBtn" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs hover:bg-slate-200 transition" title="Copy"><i class="fa-regular fa-copy"></i></button>
+          <button id="downloadTxtBtn" class="px-2 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold hover:bg-slate-200 transition">.TXT</button>
+          <button id="downloadHtmlBtn" class="px-2 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold hover:bg-slate-200 transition">.HTML</button>
+        </div>
       </div>
 
       <div id="emptyState" class="my-auto text-center py-12">
         <i class="fa-solid fa-book-open text-indigo-500 text-3xl mb-3"></i>
-        <p class="text-xs text-slate-400 max-w-xs mx-auto" id="uiEmptyMsg">Paste study material and click generate to create notes.</p>
+        <p class="text-xs text-slate-400 max-w-xs mx-auto">Paste material and click "Summarize & Expand" to generate long-form notes.</p>
       </div>
 
       <div id="loadingState" class="hidden my-auto text-center py-12">
         <div class="inline-block animate-spin rounded-full h-7 w-7 border-2 border-indigo-500 border-t-transparent mb-3"></div>
-        <p class="text-xs text-slate-500">Connecting to AI engine...</p>
+        <p class="text-xs text-slate-500">Generating exhaustive academic breakdown...</p>
       </div>
 
       <div id="resultContent" class="hidden mt-4 space-y-3 text-slate-700 dark:text-slate-200 overflow-y-auto max-h-[580px] custom-scrollbar text-xs leading-relaxed"></div>
@@ -145,9 +168,14 @@
       const emptyState = document.getElementById('emptyState');
       const loadingState = document.getElementById('loadingState');
       const resultContent = document.getElementById('resultContent');
+      const exportActions = document.getElementById('exportActions');
       const toast = document.getElementById('toast');
       const toastMsg = document.getElementById('toastMsg');
       const setApiKeyBtn = document.getElementById('setApiKeyBtn');
+      const modeSelect = document.getElementById('modeSelect');
+
+      let rawOutputText = '';
+      let htmlFormattedOutput = '';
 
       function showToast(msg) {
         toastMsg.textContent = msg;
@@ -157,7 +185,7 @@
 
       setApiKeyBtn.addEventListener('click', () => {
         const current = localStorage.getItem('DIRECT_OPENAI_KEY') || '';
-        const input = prompt('Enter your personal OpenAI API Key (sk-proj-...):\n(This is stored locally in your browser if backend Vercel route is offline)', current);
+        const input = prompt('Enter your OpenAI API Key (sk-proj-...):\n(Stored locally in your browser if backend Vercel route is offline)', current);
         if (input !== null) {
           localStorage.setItem('DIRECT_OPENAI_KEY', input.trim());
           showToast(input.trim() ? 'Key saved locally!' : 'Key cleared.');
@@ -177,34 +205,32 @@
         formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
         formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
         formatted = formatted.replace(/^### (.*$)/gim, '<h4 class="font-bold text-indigo-500 mt-3 mb-1">$1</h4>');
-        formatted = formatted.replace(/^## (.*$)/gim, '<h3 class="font-bold text-indigo-500 text-sm mt-3 mb-1.5 border-b border-indigo-200/30 pb-1">$1</h3>');
-        formatted = formatted.replace(/^# (.*$)/gim, '<h2 class="font-bold text-indigo-500 text-base mt-4 mb-2">$1</h2>');
+        formatted = formatted.replace(/^## (.*$)/gim, '<h3 class="font-bold text-indigo-500 text-sm mt-4 mb-1.5 border-b border-indigo-200/30 pb-1">$1</h3>');
+        formatted = formatted.replace(/^# (.*$)/gim, '<h2 class="font-bold text-indigo-500 text-base mt-5 mb-2">$1</h2>');
         formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900 dark:text-white">$1</strong>');
         formatted = formatted.replace(/^\* (.*$)/gim, '<li class="ml-4 list-disc my-0.5">$1</li>');
         formatted = formatted.replace(/^- (.*$)/gim, '<li class="ml-4 list-disc my-0.5">$1</li>');
-        return `<div class="chat-prose space-y-1.5">${formatted}</div>`;
+        return `<div class="chat-prose space-y-2 leading-relaxed">${formatted}</div>`;
       }
 
       async function requestAI(messages) {
         const directKey = localStorage.getItem('DIRECT_OPENAI_KEY');
 
-        // Route 1: Direct Client Call if local key exists
         if (directKey) {
           const res = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${directKey}` },
-            body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: 4000 })
+            body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: 4000, temperature: 0.3 })
           });
           if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error?.message || 'Direct API call failed.'); }
           const data = await res.json();
           return data.choices[0].message.content;
         }
 
-        // Route 2: Backend Vercel Endpoint
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages, max_tokens: 4000 })
+          body: JSON.stringify({ messages, max_tokens: 4000, temperature: 0.3 })
         });
 
         if (!response.ok) {
@@ -225,20 +251,38 @@
         loadingState.classList.remove('hidden');
 
         const targetLang = detectTargetLang();
-        const systemPrompt = `You are a world-class academic study assistant.
-Write the response ONLY in language code: "${targetLang}".
-Generate an exhaustive, multi-section study guide with Markdown headings (## Overview, ## Deep Analysis, ## Key Points, ## Definitions, ## Review Questions). Expand in long form with maximum detail.`;
+        const mode = modeSelect.value;
+
+        const systemPrompt = `You are a world-class professor creating an EXhaustive, extremely detailed study guide.
+Your objective is to extract EVERY SINGLE main idea, supporting fact, definition, and concept from the source text and expand upon it comprehensively.
+
+Structure your output into 5 mandatory sections using Markdown headers (## and ###):
+1. ## Executive Overview & Core Premises (Comprehensive analysis of main themes)
+2. ## Exhaustive Concept Breakdown (In-depth analysis of every topic)
+3. ## Granular Key Takeaways & Supporting Details (Extensive bullet list)
+4. ## Glossary of Essential Terminology & Definitions
+5. ## Review Suite & Exam Practice Questions (With detailed step-by-step answers)
+
+STRICT MANDATE:
+- DO NOT summarize briefly or skip details.
+- Expand fully on all points using clear, academic explanations.
+- Output MUST be written strictly in target language code: "${targetLang}".
+- Mode emphasis: "${mode}".`;
 
         try {
           const output = await requestAI([
             { role: 'system', content: systemPrompt },
             { role: 'user', content: `Source Material:\n${text}` }
           ]);
-          resultContent.innerHTML = formatMarkdown(output);
+
+          rawOutputText = output;
+          htmlFormattedOutput = formatMarkdown(output);
+          resultContent.innerHTML = htmlFormattedOutput;
           resultContent.classList.remove('hidden');
+          exportActions.classList.remove('opacity-50', 'pointer-events-none');
         } catch (err) {
           showToast(err.message || 'Failed to connect to AI');
-          resultContent.innerHTML = `<div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500"><strong>Connection Error:</strong> ${escapeHtml(err.message)}<br><br><span class="text-xs">Click the <strong>API Key</strong> button in the top header to enter your key directly if Vercel server routes are unconfigured.</span></div>`;
+          resultContent.innerHTML = `<div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500"><strong>Connection Error:</strong> ${escapeHtml(err.message)}</div>`;
           resultContent.classList.remove('hidden');
         }
 
@@ -246,6 +290,30 @@ Generate an exhaustive, multi-section study guide with Markdown headings (## Ove
       });
 
       document.getElementById('clearInputBtn').addEventListener('click', () => { sourceText.value = ''; });
+
+      document.getElementById('copyBtn').addEventListener('click', () => {
+        if (!rawOutputText) return;
+        navigator.clipboard.writeText(rawOutputText);
+        showToast('Notes copied to clipboard!');
+      });
+
+      document.getElementById('downloadTxtBtn').addEventListener('click', () => {
+        if (!rawOutputText) return;
+        const blob = new Blob([rawOutputText], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'study-guide.txt';
+        a.click();
+      });
+
+      document.getElementById('downloadHtmlBtn').addEventListener('click', () => {
+        if (!rawOutputText) return;
+        const blob = new Blob([`<!DOCTYPE html><html><body style="font-family:sans-serif;padding:2rem;max-width:900px;margin:0 auto;line-height:1.6;">${htmlFormattedOutput}</body></html>`], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'study-guide.html';
+        a.click();
+      });
     });
   </script>
 </body>
