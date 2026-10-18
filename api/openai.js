@@ -53,28 +53,47 @@ export default async function handler(req, res) {
       return res.status(response.status).json({ error: errText || 'OpenAI request failed' });
     }
 
+    // Handle Streaming Response
     if (shouldStream && response.body) {
-      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8'); // Use text/plain so frontend gets pure text
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
 
       const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+      const decoder = new TextDecoder("utf-8");
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
+        
         const chunk = decoder.decode(value, { stream: true });
-        res.write(chunk);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          // Parse OpenAI's SSE format: "data: {...}"
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const data = JSON.parse(line.slice(6));
+              const text = data.choices[0]?.delta?.content || '';
+              if (text) {
+                res.write(text); // Write ONLY the text tokens to the frontend
+              }
+            } catch (e) {
+              // Silently ignore incomplete JSON chunks that span multiple lines
+            }
+          }
+        }
       }
 
       res.end();
       return;
     }
 
+    // Handle Non-Streaming Response
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content || '';
     return res.status(200).json({ ok: true, content });
+    
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Unexpected server error.' });
   }
