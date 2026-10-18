@@ -1,287 +1,608 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>LeoJStudyLens — AI Study Assistant</title>
-  <meta name="description" content="AI-powered study notes, flashcards and chat tutor." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%237c3aed'/%3E%3Ctext x='50' y='62' text-anchor='middle' fill='white' font-size='48' font-family='Inter, Arial' font-weight='700'%3EL%3C/text%3E%3C/svg%3E">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LeoJStudyLens AI — Pro AI Study Notes & Assistant</title>
+
+  <!-- Web App & Phone Bookmark Logo Config -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LeoJStudyLens">
+  <meta name="theme-color" content="#7c3aed">
+
+  <!-- Dynamic SVG Logo as App Icon -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%237c3aed'><rect width='512' height='512' rx='128' fill='url(%23g)'/><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%234f46e5'/><stop offset='100%' stop-color='%23d946ef'/></linearGradient></defs><path fill='white' d='M256 120c-70.7 0-128 57.3-128 128s57.3 128 128 128 128-57.3 128-128-57.3-128-128-128zm0 210c-45.3 0-82-36.7-82-82s36.7-82 82-82 82 36.7 82 82-36.7 82-82 82z'/><circle cx='256' cy='248' r='45' fill='white'/></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%237c3aed'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>📖</text></svg>">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { ai: {50:'#f7f7ff',100:'#eef2ff',300:'#a78bfa',500:'#7c3aed',700:'#6d28d9'} } } } };
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            ai: { 50: '#f7f7ff', 100: '#eef2ff', 300: '#a78bfa', 500: '#7c3aed', 700: '#6d28d9' }
+          }
+        }
+      }
+    };
   </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
   <style>
-    :root { --glass: rgba(255,255,255,0.6); --glass-dark: rgba(15,23,42,0.6); }
-    html,body { height:100%; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
-    .accent { background: linear-gradient(90deg,#7c3aed 0%,#ec4899 100%); }
-    .card { background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6)); backdrop-filter: blur(8px); }
-    .dark .card { background: linear-gradient(180deg, rgba(17,24,39,0.6), rgba(17,24,39,0.5)); }
-    .avatar { width:36px; height:36px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; font-weight:700 }
-    .msg-user { background: linear-gradient(90deg,#6366f1,#f43f5e); color:white }
-    .msg-assistant { background: var(--glass); }
-    .typing { width:10px; height:10px; border-radius:50%; display:inline-block; margin:0 2px; opacity:0.8; }
-    .pulse { animation: pulse 1s infinite; }
-    @keyframes pulse { 0%{ transform: translateY(0) } 50%{ transform: translateY(-4px) } 100%{ transform: translateY(0) } }
-    .scrollbar::-webkit-scrollbar { width:8px } .scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius:8px }
+    body { font-family: 'Inter', sans-serif; }
+    .blob { position: absolute; filter: blur(80px); opacity: 0.24; transform: translateZ(0); }
+    .key-badge { font-size: 11px; padding: 6px 10px; border-radius: 9999px; cursor: pointer; }
+    .glass { backdrop-filter: blur(12px); }
+
+    /* Intro Splash Animation */
+    #appSplash { transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.6s; }
+    .splash-logo-anim { animation: pulseLogo 1.5s infinite ease-in-out alternate; }
+    @keyframes pulseLogo { 0% { transform: scale(0.92); opacity: 0.8; } 100% { transform: scale(1.08); opacity: 1; } }
+
+    /* Streaming token animation and cursor */
+    .streaming-output { white-space: pre-wrap; word-break: break-word; font-family: inherit; }
+    .streaming-token { display: inline-block; opacity: 0; transform: translateY(6px); transition: opacity 160ms ease, transform 200ms ease; }
+    .streaming-token.show { opacity: 1; transform: translateY(0); }
+    .streaming-cursor { display: inline-block; width: 8px; height: 1.1em; background: #7c3aed; margin-left: 4px; vertical-align: middle; border-radius: 2px; animation: blink 0.8s infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.3); border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.5); }
+
+    /* Formatted AI Response styling */
+    .chat-prose code { background: rgba(124, 58, 237, 0.1); color: #7c3aed; padding: 2px 6px; border-radius: 6px; font-size: 0.85em; font-family: monospace; }
+    .dark .chat-prose code { background: rgba(167, 139, 250, 0.15); color: #c4b5fd; }
+    .chat-prose pre { background: #0f172a; color: #f8fafc; padding: 12px; border-radius: 12px; overflow-x: auto; font-size: 0.85em; margin: 8px 0; }
   </style>
 </head>
-<body class="h-full bg-gradient-to-br from-ai-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-950 dark:to-black text-slate-800 dark:text-slate-100">
+<body class="h-full bg-gradient-to-br from-ai-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-black text-slate-800 dark:text-slate-100 flex flex-col antialiased">
 
-  <div class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-    <!-- Left column: controls + material -->
-    <aside class="lg:col-span-4 space-y-6">
-      <div class="card rounded-2xl p-4 shadow-lg border border-slate-200/30 dark:border-slate-800/40">
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-lg accent text-white flex items-center justify-center shadow-md"><i class="fa-solid fa-graduation-cap"></i></div>
-            <div>
-              <h1 class="text-lg font-bold">LeoJStudyLens</h1>
-              <p class="text-xs text-slate-500 dark:text-slate-400">AI Study Notes & Tutor</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <button id="themeToggleTop" class="w-9 h-9 rounded-lg bg-white/80 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700"><i id="themeIconTop" class="fa-solid fa-moon text-sm"></i></button>
-            <button id="openChatDock" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:brightness-105">Open Tutor</button>
-          </div>
+  <!-- Intro Launch Screen Animation -->
+  <div id="appSplash" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white">
+    <div class="relative flex items-center justify-center">
+      <div class="w-24 h-24 rounded-3xl bg-gradient-to-tr from-indigo-600 via-fuchsia-500 to-rose-400 blur-xl opacity-70 animate-pulse"></div>
+      <div class="absolute w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 flex items-center justify-center text-white shadow-2xl splash-logo-anim">
+        <i class="fa-solid fa-graduation-cap fa-2x"></i>
+      </div>
+    </div>
+    <h1 class="mt-6 text-xl font-bold tracking-wider bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-rose-300 bg-clip-text text-transparent">LeoJStudyLens AI</h1>
+    <p id="splashStatus" class="text-xs text-slate-400 mt-2 font-medium tracking-wide">Detecting language & preparing workspace…</p>
+  </div>
+
+  <!-- Background Blobs -->
+  <div aria-hidden class="blob left-0 top-0 w-80 h-80 bg-gradient-to-br from-indigo-400 via-fuchsia-400 to-rose-400 rounded-full -translate-x-1/3 -translate-y-1/3"></div>
+  <div aria-hidden class="blob right-0 bottom-12 w-96 h-96 bg-gradient-to-tr from-emerald-300 to-cyan-300 rounded-full translate-x-1/4 translate-y-1/4"></div>
+
+  <!-- Header -->
+  <header class="relative z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between glass border-b border-slate-200/50 dark:border-slate-800/50 rounded-b-2xl">
+      <div class="flex items-center gap-3">
+        <!-- Bookmarkable App Icon Visual -->
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-graduation-cap fa-lg"></i>
         </div>
-
-        <div class="mt-4">
-          <label class="text-xs uppercase text-slate-500 font-semibold">Language</label>
-          <select id="langSelectMain" class="mt-2 w-full rounded-md p-2 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <option value="auto">Auto</option>
-            <option value="en">English</option>
-            <option value="zh">中文</option>
-            <option value="es">Español</option>
-            <option value="fr">Français</option>
-          </select>
+        <div>
+          <div class="text-base font-bold tracking-tight">LeoJStudyLens AI</div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400" id="uiSubtitle">AI-Powered Study Assistant</div>
         </div>
       </div>
 
-      <div class="card rounded-2xl p-4 shadow-lg border border-slate-200/30 dark:border-slate-800/40">
-        <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Language Switcher Dropdown -->
+        <div class="relative">
+          <select id="langSelect" class="bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold px-2.5 py-2 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer">
+            <option value="auto">🌐 Auto</option>
+            <option value="en">🇺🇸 English</option>
+            <option value="es">🇪🇸 Español</option>
+            <option value="fr">🇫🇷 Français</option>
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="zh">🇨🇳 中文</option>
+            <option value="ja">🇯🇵 日本語</option>
+          </select>
+        </div>
+
+        <button id="openChatBtn" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white shadow-lg shadow-indigo-500/25 hover:scale-105 active:scale-95 transform transition">
+          <i class="fa-solid fa-comments text-xs"></i>
+          <span class="text-xs font-semibold hidden sm:inline" id="uiChatBtn">Study Chat</span>
+        </button>
+
+        <button id="setKeyBtn" class="key-badge bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition">API Key</button>
+
+        <button id="themeToggle" class="w-9 h-9 rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          <i id="themeIcon" class="fa-solid fa-moon text-xs"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
+    <!-- Source Input Section -->
+    <section class="lg:col-span-6 bg-white/90 dark:bg-slate-800/90 rounded-3xl border border-slate-200 dark:border-slate-700 p-5 shadow-xl backdrop-blur-md flex flex-col justify-between">
+      <div>
+        <div class="flex items-start justify-between">
           <div>
-            <h3 class="font-bold">Study Material</h3>
-            <p class="text-xs text-slate-500">Paste text or upload notes below</p>
+            <h3 class="font-bold text-slate-800 dark:text-slate-100" id="uiSourceTitle">Study Material</h3>
+            <p class="text-xs text-slate-400 mt-0.5" id="uiSourceDesc">Paste notes, text, or articles in any language.</p>
           </div>
-          <div class="text-xs text-slate-400" id="statsMini">0 words</div>
-        </div>
-
-        <textarea id="sourceText" rows="10" class="mt-3 w-full rounded-md p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm resize-y" placeholder="Paste study material here..."></textarea>
-
-        <div class="mt-3 grid grid-cols-2 gap-2">
-          <select id="formatSelectMain" class="rounded-md p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm">
-            <option value="bullets">Bullets</option>
-            <option value="definitions">Definitions</option>
-            <option value="summary">Summary</option>
-            <option value="exam">Flashcards</option>
-          </select>
-          <select id="concisenessMain" class="rounded-md p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm">
-            <option value="balanced">Balanced</option>
-            <option value="ultra">Ultra-short</option>
-            <option value="comprehensive">Comprehensive</option>
-          </select>
-        </div>
-
-        <div class="mt-4 flex items-center gap-2 justify-between">
-          <div class="flex items-center gap-2">
-            <label class="inline-flex items-center text-xs"><input id="includeInChat" type="checkbox" checked class="mr-2">Attach to chat</label>
-          </div>
-          <div class="flex items-center gap-2">
-            <button id="clearBtn" class="text-rose-500 text-sm">Clear</button>
-            <button id="generateBtnMain" class="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-pink-500 text-white text-sm shadow-md">Generate</button>
+          <div class="text-xs text-slate-400 text-right">
+            <div id="statsCount">0 words • 0 chars • ~0 min read</div>
+            <button id="clearInputBtn" class="mt-1 text-rose-500 text-xs font-semibold hover:underline">Clear</button>
           </div>
         </div>
-      </div>
 
-      <div class="card rounded-2xl p-4 shadow-lg border border-slate-200/30 dark:border-slate-800/40">
-        <h4 class="font-bold">Quick Tools</h4>
-        <div class="mt-3 grid grid-cols-2 gap-2">
-          <button id="flashcardBtn" class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm">Create Flashcards</button>
-          <button id="quizBtn" class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm">Create Quiz</button>
-          <button id="keywordsBtn" class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm">Extract Keywords</button>
-          <button id="examplesBtn" class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm">Generate Examples</button>
-        </div>
-      </div>
-    </aside>
+        <textarea id="sourceText" placeholder="Paste study material here..." class="mt-4 w-full min-h-[280px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 focus:border-indigo-500 outline-none resize-vertical text-sm transition"></textarea>
 
-    <!-- Right column: chat and results -->
-    <main class="lg:col-span-8 space-y-6">
-      <div class="card rounded-2xl p-4 shadow-xl border border-slate-200/30 dark:border-slate-800/40">
-        <div class="flex items-center justify-between">
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <h2 class="font-bold text-lg">Study Tutor</h2>
-            <p class="text-xs text-slate-500">Ask questions, get summaries and practice with flashcards</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <button id="downloadTxtBtnMain" class="px-3 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-sm">.TXT</button>
-            <button id="downloadHtmlBtnMain" class="px-3 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-sm">.HTML</button>
-            <button id="copyBtnMain" class="px-3 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-sm"><i class="fa-regular fa-copy"></i></button>
-          </div>
-        </div>
-
-        <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="lg:col-span-2 border border-slate-200/30 dark:border-slate-800/40 rounded-lg p-3 max-h-[460px] overflow-y-auto scrollbar">
-            <div id="resultContentMain" class="prose text-sm text-slate-700 dark:text-slate-200"></div>
+            <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold" id="uiFormatLabel">Format</label>
+            <select id="formatSelect" class="mt-1 w-full rounded-xl p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-indigo-500">
+              <option value="bullets">Bullet Points (Concise)</option>
+              <option value="definitions">Key Definitions & Terms</option>
+              <option value="summary">TL;DR Summary Paragraph</option>
+              <option value="exam">Exam Q&A Flashcards</option>
+            </select>
           </div>
 
-          <div class="rounded-lg p-3 border border-slate-200/30 dark:border-slate-800/40">
-            <h4 class="font-semibold">Conversation</h4>
-            <div id="chatDock" class="mt-3 space-y-3 max-h-[360px] overflow-y-auto scrollbar"></div>
-            <div class="mt-3">
-              <textarea id="chatInputDock" rows="2" class="w-full rounded-md p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm" placeholder="Ask the tutor..."></textarea>
-              <div class="mt-2 flex items-center justify-between">
-                <div class="text-xs text-slate-400">Model: <span id="modelLabel">gpt-4o-mini</span></div>
-                <div class="flex items-center gap-2">
-                  <button id="sendDockBtn" class="px-3 py-1 rounded-lg bg-indigo-600 text-white text-sm">Send</button>
-                </div>
-              </div>
-            </div>
+          <div>
+            <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold" id="uiConcisenessLabel">Conciseness</label>
+            <select id="concisenessLevel" class="mt-1 w-full rounded-xl p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-indigo-500">
+              <option value="ultra">Ultra-short</option>
+              <option value="balanced" selected>Balanced</option>
+              <option value="comprehensive">Comprehensive</option>
+            </select>
           </div>
         </div>
       </div>
 
-      <footer class="text-xs text-slate-400 text-center">Built with ❤️ — LeoJStudyLens (demo mode available until backend configured)</footer>
-    </main>
+      <div class="mt-5 flex items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/50">
+        <label class="inline-flex items-center gap-2 text-xs cursor-pointer select-none">
+          <input id="aiToggle" type="checkbox" checked class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+          <span class="font-semibold text-slate-600 dark:text-slate-300">OpenAI Engine</span>
+        </label>
+
+        <button id="generateBtn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white font-semibold text-xs shadow-xl shadow-indigo-500/20 hover:brightness-105 active:scale-95 transition">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span id="uiGenerateBtn">Generate Notes</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Notes Output Section -->
+    <section class="lg:col-span-6 bg-white/90 dark:bg-slate-800/90 rounded-3xl border border-slate-200 dark:border-slate-700 p-5 shadow-xl backdrop-blur-md flex flex-col">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-slate-800 dark:text-slate-100" id="uiNotesTitle">Generated Notes</h3>
+          <p class="text-xs text-slate-400 mt-0.5" id="uiNotesDesc">Results automatically adapted to target language.</p>
+        </div>
+
+        <div id="outputActions" class="flex items-center gap-1.5 opacity-50 pointer-events-none transition-opacity">
+          <button id="copyBtn" title="Copy" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-regular fa-copy"></i></button>
+          <button id="downloadTxtBtn" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-[11px] font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">.TXT</button>
+          <button id="downloadHtmlBtn" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-[11px] font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">.HTML</button>
+        </div>
+      </div>
+
+      <div id="emptyState" class="my-auto text-center py-12">
+        <div class="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
+          <i class="fa-solid fa-lightbulb fa-lg"></i>
+        </div>
+        <p class="text-xs text-slate-400 max-w-xs mx-auto" id="uiEmptyMsg">Paste material and click generate to create study notes.</p>
+      </div>
+
+      <div id="loadingState" class="hidden my-auto text-center py-12">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-3 border-indigo-500 border-t-transparent mb-3"></div>
+        <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">Processing text...</p>
+      </div>
+
+      <div id="resultContent" class="hidden mt-4 space-y-3 text-slate-700 dark:text-slate-200 overflow-y-auto max-h-[500px] custom-scrollbar text-sm pr-1"></div>
+    </section>
+  </main>
+
+  <!-- Enhanced AI Chat Modal -->
+  <div id="chatModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4 transition-all duration-200">
+    <div class="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col h-[82vh] max-h-[750px]">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-4 px-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow-md">
+            <i class="fa-solid fa-sparkles text-xs"></i>
+          </div>
+          <div>
+            <div class="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <span>Study Partner</span>
+              <span id="chatContextBadge" class="hidden text-[9px] bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 font-semibold px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">Source Attached</span>
+            </div>
+            <div class="text-[11px] text-slate-400">Multilingual AI Tutor</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <select id="chatModel" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-1 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none">
+            <option value="gpt-4o-mini">gpt-4o-mini</option>
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+          </select>
+          <button id="clearChatBtn" title="Clear chat" class="p-1.5 text-slate-400 hover:text-rose-500 transition text-xs"><i class="fa-solid fa-trash-can"></i></button>
+          <button id="closeChatBtn" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+
+      <!-- Chat Pane -->
+      <div id="chatPane" class="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3 bg-slate-50/30 dark:bg-slate-950/30 custom-scrollbar"></div>
+
+      <!-- Chat Input Controls -->
+      <div class="p-3.5 px-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="inline-flex items-center text-[11px] gap-1.5 text-slate-500 dark:text-slate-400 cursor-pointer select-none">
+            <input id="includeNotes" type="checkbox" checked class="w-3 h-3 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+            <span>Attach workspace notes as AI context</span>
+          </label>
+        </div>
+
+        <div class="flex items-end gap-2 bg-slate-50 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700/80 focus-within:border-indigo-500 transition">
+          <textarea id="chatInput" rows="1" class="flex-1 max-h-28 bg-transparent px-3 py-1.5 text-xs outline-none resize-none text-slate-800 dark:text-slate-100 placeholder-slate-400" placeholder="Ask a question or request a quick quiz..."></textarea>
+          <button id="sendChatBtn" class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition flex-shrink-0">
+            <i class="fa-solid fa-paper-plane text-[10px]"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 dark:text-emerald-600"></i>
+    <span id="toastMsg" class="text-xs font-semibold">Copied to clipboard!</span>
   </div>
 
   <script>
-    // Basic UI wiring + enhanced chat rendering
-    const themeToggleTop = document.getElementById('themeToggleTop');
-    const themeIconTop = document.getElementById('themeIconTop');
-    const root = document.documentElement;
+    document.addEventListener('DOMContentLoaded', () => {
+      /* --- Intro Launch Animation Dismissal --- */
+      setTimeout(() => {
+        const splash = document.getElementById('appSplash');
+        if (splash) { splash.style.opacity = '0'; setTimeout(() => splash.style.display = 'none', 600); }
+      }, 1000);
 
-    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      root.classList.add('dark'); themeIconTop.className = 'fa-solid fa-sun text-sm';
-    } else { root.classList.remove('dark'); themeIconTop.className = 'fa-solid fa-moon text-sm'; }
+      /* --- Multilingual UI Translations --- */
+      const translations = {
+        en: { subtitle: "AI-Powered Study Assistant", chatBtn: "Study Chat", sourceTitle: "Study Material", sourceDesc: "Paste notes or text in any language.", format: "Format", conciseness: "Conciseness", generate: "Generate Notes", notesTitle: "Generated Notes", notesDesc: "Adapted to target language automatically.", empty: "Paste material and click generate to create notes." },
+        es: { subtitle: "Asistente de Estudio IA", chatBtn: "Chat de Estudio", sourceTitle: "Material de Estudio", sourceDesc: "Pega notas o texto en cualquier idioma.", format: "Formato", conciseness: "Concisión", generate: "Generar Notas", notesTitle: "Notas Generadas", notesDesc: "Adaptadas al idioma seleccionado.", empty: "Pega el material y haz clic en generar." },
+        fr: { subtitle: "Assistant d'Étude IA", chatBtn: "Chat d'Étude", sourceTitle: "Matériel d'Étude", sourceDesc: "Collez des notes ou du texte.", format: "Format", conciseness: "Concision", generate: "Générer des Notes", notesTitle: "Notes Générées", notesDesc: "Adapté automatiquement à la langue cible.", empty: "Collez le matériel et cliquez sur générer." },
+        de: { subtitle: "KI-Lernassistent", chatBtn: "Lern-Chat", sourceTitle: "Lernmaterial", sourceDesc: "Fügen Sie Notizen oder Text ein.", format: "Format", conciseness: "Kompaktheit", generate: "Notizen Erstellen", notesTitle: "Erstellte Notizen", notesDesc: "Automatisch an die Zielsprache angepasst.", empty: "Material einfügen und auf Erstellen klicken." },
+        zh: { subtitle: "AI 智能学习助手", chatBtn: "学习 AI 对话", sourceTitle: "学习资料", sourceDesc: "粘贴任何语言的笔记或文章。", format: "格式", conciseness: "精简度", generate: "生成学习笔记", notesTitle: "生成的笔记", notesDesc: "已根据所选语言自动调整。", empty: "粘贴资料并点击生成按钮。" },
+        ja: { subtitle: "AI 学習アシスタント", chatBtn: "学習チャット", sourceTitle: "学習教材", sourceDesc: "テキストを貼り付けてください。", format: "フォーマット", conciseness: "簡巧さ", generate: "ノートを作成", notesTitle: "作成されたノート", notesDesc: "対象言語に自動調整されます。", empty: "テキストを貼り付けて作成をクリックしてください。" }
+      };
 
-    themeToggleTop.addEventListener('click', () => {
-      if (root.classList.contains('dark')) { root.classList.remove('dark'); localStorage.theme = 'light'; themeIconTop.className = 'fa-solid fa-moon text-sm'; }
-      else { root.classList.add('dark'); localStorage.theme = 'dark'; themeIconTop.className = 'fa-solid fa-sun text-sm'; }
-    });
-
-    // Elements
-    const sourceText = document.getElementById('sourceText');
-    const statsMini = document.getElementById('statsMini');
-    const generateBtnMain = document.getElementById('generateBtnMain');
-    const resultContentMain = document.getElementById('resultContentMain');
-    const formatSelectMain = document.getElementById('formatSelectMain');
-    const concisenessMain = document.getElementById('concisenessMain');
-    const includeInChat = document.getElementById('includeInChat');
-    const chatDock = document.getElementById('chatDock');
-    const chatInputDock = document.getElementById('chatInputDock');
-    const sendDockBtn = document.getElementById('sendDockBtn');
-
-    function updateStats(){
-      const text = sourceText.value || '';
-      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-      statsMini.textContent = `${words.toLocaleString()} words`;
-    }
-    sourceText.addEventListener('input', updateStats);
-
-    // Chat history storage
-    function loadHistory(){ try { return JSON.parse(localStorage.getItem('lj_chat')||'[]'); } catch(e){ return []; } }
-    function saveHistory(h){ localStorage.setItem('lj_chat', JSON.stringify(h)); }
-
-    function renderChatDock(){
-      const history = loadHistory();
-      chatDock.innerHTML = '';
-      history.forEach(m => {
-        const el = document.createElement('div');
-        el.className = 'flex gap-3 items-start';
-        const avatar = document.createElement('div');
-        avatar.className = 'avatar';
-        avatar.style.background = m.role==='user' ? 'linear-gradient(90deg,#6366f1,#f43f5e)' : 'transparent';
-        avatar.style.color = m.role==='user' ? 'white' : 'inherit';
-        avatar.textContent = m.role==='user' ? 'You' : 'AI';
-        const bubble = document.createElement('div');
-        bubble.className = 'p-3 rounded-xl';
-        bubble.style.background = m.role==='user' ? 'linear-gradient(90deg,#6366f1,#f43f5e)' : (root.classList.contains('dark') ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.03)');
-        bubble.style.color = m.role==='user' ? 'white' : '';
-        bubble.innerHTML = `<div class="text-sm">${escapeHtml(m.content).replace(/\n/g,'<br>')}</div><div class="text-[10px] text-slate-400 mt-1">${new Date(m.ts).toLocaleTimeString()}</div>`;
-        el.appendChild(avatar);
-        el.appendChild(bubble);
-        chatDock.appendChild(el);
-      });
-      chatDock.scrollTop = chatDock.scrollHeight;
-    }
-
-    function pushMessage(role, content){
-      const h = loadHistory(); h.push({ role, content, ts: Date.now() }); saveHistory(h); renderChatDock(); }
-
-    // Escape for safe innerHTML
-    function escapeHtml(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-    // Fallback demo engine (when no backend available) - simple streaming illusion
-    function streamTextSim(text, onChunk, onDone){
-      const tokens = text.split(/(\s+)/).filter(Boolean);
-      let i=0; const interval = setInterval(()=>{ i++; onChunk(tokens.slice(0,i).join('')); if(i>=tokens.length){ clearInterval(interval); onDone(text); } }, 18);
-    }
-
-    async function callBackend(messages, model, onChunk, onDone, onError){
-      try{
-        const res = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model, messages }) });
-        if(!res.ok) throw new Error('Backend not available');
-        const data = await res.json();
-        const text = data?.choices?.[0]?.message?.content || data?.output || 'No response';
-        onDone(text);
-      }catch(e){
-        // demo fallback
-        const fallback = buildFallback(messages);
-        streamTextSim(fallback, onChunk, onDone);
+      const langSelect = document.getElementById('langSelect');
+      function detectBrowserLanguage() { const navLang = (navigator.language || navigator.userLanguage || 'en').substring(0,2); return translations[navLang] ? navLang : 'en'; }
+      function updateLanguageUI(lang) {
+        const targetLang = lang === 'auto' ? detectBrowserLanguage() : lang;
+        const t = translations[targetLang] || translations.en;
+        document.getElementById('uiSubtitle').textContent = t.subtitle;
+        document.getElementById('uiChatBtn').textContent = t.chatBtn;
+        document.getElementById('uiSourceTitle').textContent = t.sourceTitle;
+        document.getElementById('uiSourceDesc').textContent = t.sourceDesc;
+        document.getElementById('uiFormatLabel').textContent = t.format;
+        document.getElementById('uiConcisenessLabel').textContent = t.conciseness;
+        document.getElementById('uiGenerateBtn').textContent = t.generate;
+        document.getElementById('uiNotesTitle').textContent = t.notesTitle;
+        document.getElementById('uiNotesDesc').textContent = t.notesDesc;
+        document.getElementById('uiEmptyMsg').textContent = t.empty;
       }
-    }
+      langSelect.addEventListener('change', (e)=> updateLanguageUI(e.target.value));
+      updateLanguageUI('auto');
 
-    function buildFallback(messages){
-      const last = [...messages].reverse().find(m=>m.role==='user')?.content || '';
-      return `Demo Tutor Response for: ${last}\n\n• Main idea: ...\n• Key facts: ...\n• Example: ...\n\n(Connect a backend to run the real model)`;
-    }
+      /* --- Elements --- */
+      const sourceText = document.getElementById('sourceText');
+      const statsCount = document.getElementById('statsCount');
+      const clearInputBtn = document.getElementById('clearInputBtn');
+      const formatSelect = document.getElementById('formatSelect');
+      const concisenessLevel = document.getElementById('concisenessLevel');
+      const generateBtn = document.getElementById('generateBtn');
+      const emptyState = document.getElementById('emptyState');
+      const loadingState = document.getElementById('loadingState');
+      const resultContent = document.getElementById('resultContent');
+      const outputActions = document.getElementById('outputActions');
+      const copyBtn = document.getElementById('copyBtn');
+      const downloadTxtBtn = document.getElementById('downloadTxtBtn');
+      const downloadHtmlBtn = document.getElementById('downloadHtmlBtn');
+      const themeToggle = document.getElementById('themeToggle');
+      const themeIcon = document.getElementById('themeIcon');
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const aiToggle = document.getElementById('aiToggle');
+      const setKeyBtn = document.getElementById('setKeyBtn');
+      const openChatBtn = document.getElementById('openChatBtn');
+      const chatModal = document.getElementById('chatModal');
+      const closeChatBtn = document.getElementById('closeChatBtn');
+      const chatPane = document.getElementById('chatPane');
+      const chatInput = document.getElementById('chatInput');
+      const sendChatBtn = document.getElementById('sendChatBtn');
+      const chatModel = document.getElementById('chatModel');
+      const includeNotes = document.getElementById('includeNotes');
+      const clearChatBtn = document.getElementById('clearChatBtn');
+      const chatContextBadge = document.getElementById('chatContextBadge');
 
-    // Sending chat from dock
-    async function sendDock(){
-      const text = chatInputDock.value.trim(); if(!text) return; chatInputDock.value=''; pushMessage('user', text);
-      // create assistant placeholder
-      const placeholder = '…'; pushMessage('assistant', placeholder);
+      /* --- Theme Toggle --- */
+      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+        themeIcon.className = 'fa-solid fa-sun text-xs';
+      } else {
+        document.documentElement.classList.remove('dark');
+        themeIcon.className = 'fa-solid fa-moon text-xs';
+      }
 
-      const history = loadHistory();
-      const messages = history.map(h=>({ role:h.role, content:h.content }));
-      const model = document.getElementById('modelLabel').textContent || 'gpt-4o-mini';
+      themeToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (document.documentElement.classList.contains('dark')) {
+          document.documentElement.classList.remove('dark');
+          localStorage.theme = 'light';
+          themeIcon.className = 'fa-solid fa-moon text-xs';
+        } else {
+          document.documentElement.classList.add('dark');
+          localStorage.theme = 'dark';
+          themeIcon.className = 'fa-solid fa-sun text-xs';
+        }
+      });
 
-      let partial = '';
-      await callBackend(messages, model, (chunk)=>{
-        // replace last assistant
-        const h = loadHistory(); h[h.length-1].content = chunk; saveHistory(h); renderChatDock();
-      }, (full)=>{
-        // final
-        const h = loadHistory(); h[h.length-1].content = full; saveHistory(h); renderChatDock();
-      }, (err)=>{ showToast(err || 'Error'); });
-    }
+      /* --- Source Stats & Context Badge --- */
+      function updateStats() {
+        const text = sourceText.value || '';
+        const charCount = text.length;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        const readingTime = Math.ceil(words / 200);
+        statsCount.textContent = `${words.toLocaleString()} words • ${charCount.toLocaleString()} chars • ~${readingTime} min read`;
+        if (words > 0 && includeNotes.checked) chatContextBadge.classList.remove('hidden'); else chatContextBadge.classList.add('hidden');
+      }
+      sourceText.addEventListener('input', updateStats);
+      includeNotes.addEventListener('change', updateStats);
 
-    sendDockBtn.addEventListener('click', sendDock);
-    chatInputDock.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendDock(); } });
+      clearInputBtn.addEventListener('click', (e) => { e.preventDefault(); sourceText.value = ''; updateStats(); sourceText.focus(); showToast('Workspace cleared.'); });
 
-    // Generate notes from material
-    generateBtnMain.addEventListener('click', async ()=>{
-      const material = sourceText.value.trim(); if(!material){ showToast('Add material first'); return; }
-      resultContentMain.innerHTML = '<div class="text-sm text-slate-400">Generating…</div>';
-      const messages = [ { role:'system', content:'You are a study note summarizer.' }, { role:'user', content:`Generate ${formatSelectMain.value} notes at ${concisenessMain.value} level in target language. Material:\n\n${material}` } ];
-      await callBackend(messages, 'gpt-4o-mini', (chunk)=>{ resultContentMain.innerHTML = '<div class="prose">'+chunk.replace(/\n/g,'<br>')+'</div>'; }, (full)=>{ resultContentMain.innerHTML = '<div class="prose">'+full.replace(/\n/g,'<br>')+'</div>'; pushMessage('assistant', full); }, (err)=>{ resultContentMain.innerHTML = `<div class='text-rose-500'>Error: ${err}</div>`; });
+      function showToast(message) { toastMsg.textContent = message; toast.classList.remove('translate-y-20','opacity-0'); setTimeout(() => toast.classList.add('translate-y-20','opacity-0'), 3000); }
+
+      /* --- API Key Handling --- */
+      function getStoredApiKey() { return localStorage.getItem('OPENAI_API_KEY') || ''; }
+      function storeApiKey(key) { if (key) localStorage.setItem('OPENAI_API_KEY', key); }
+
+      setKeyBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const current = getStoredApiKey();
+        const entered = prompt('Paste your OpenAI API key (stored locally in browser):\nExample: sk-...', current);
+        if (entered !== null && entered.trim()) { storeApiKey(entered.trim()); showToast('API key saved!'); aiToggle.checked = true; }
+      });
+
+      /* --- Formatting Engine --- */
+      function escapeHtml(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      function formatMarkdown(text) {
+        if (!text) return '';
+        let formatted = escapeHtml(text);
+        formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+        formatted = formatted.replace(/^### (.*$)/gim, '<h4 class="font-bold text-indigo-600 dark:text-indigo-400 text-xs mt-3 mb-1">$1</h4>');
+        formatted = formatted.replace(/^## (.*$)/gim, '<h3 class="font-bold text-indigo-600 dark:text-indigo-400 text-sm mt-3 mb-1.5">$1</h3>');
+        formatted = formatted.replace(/^# (.*$)/gim, '<h2 class="font-bold text-indigo-600 dark:text-indigo-400 text-base mt-4 mb-2">$1</h2>');
+        formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900 dark:text-white">$1</strong>');
+        formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        formatted = formatted.replace(/^\* (.*$)/gim, '<li class="ml-4 list-disc my-0.5">$1</li>');
+        formatted = formatted.replace(/^- (.*$)/gim, '<li class="ml-4 list-disc my-0.5">$1</li>');
+        return `<div class="chat-prose space-y-1.5 leading-relaxed text-xs sm:text-sm">${formatted}</div>`;
+      }
+
+      /* --- Chat UI & Storage --- */
+      function loadChatHistory() { try { return JSON.parse(localStorage.getItem('openai_chat_history')||'[]'); } catch(e){ return []; } }
+      function saveChatHistory(h){ localStorage.setItem('openai_chat_history', JSON.stringify(h||[])); }
+
+      function renderChat() {
+        const history = loadChatHistory();
+        chatPane.innerHTML = '';
+        if (history.length === 0) {
+          chatPane.innerHTML = `\n            <div class="text-center py-10">\n              <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-2">\n                <i class="fa-solid fa-comments text-sm"></i>\n              </div>\n              <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Start your study chat</p>\n              <p class="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">Ask questions, request quizzes, or get explanations in any language.</p>\n            </div>`;
+          return;
+        }
+
+        history.forEach((m) => {
+          const isUser = m.role === 'user';
+          const msgDiv = document.createElement('div');
+          msgDiv.className = isUser ? 'flex justify-end' : 'flex justify-start';
+
+          const bubble = document.createElement('div');
+          bubble.className = isUser 
+            ? 'max-w-[85%] bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white p-3 px-3.5 rounded-2xl rounded-tr-xs shadow-sm text-xs'
+            : 'max-w-[88%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-700/80 shadow-sm relative group text-xs';
+
+          if (isUser) {
+            bubble.textContent = m.content;
+          } else {
+            bubble.innerHTML = formatMarkdown(m.content);
+            const cBtn = document.createElement('button');
+            cBtn.className = 'absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-500 transition text-[10px] p-1';
+            cBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+            cBtn.onclick = () => { navigator.clipboard.writeText(m.content); showToast('Copied to clipboard!'); };
+            bubble.appendChild(cBtn);
+          }
+
+          msgDiv.appendChild(bubble);
+          chatPane.appendChild(msgDiv);
+        });
+
+        chatPane.scrollTop = chatPane.scrollHeight;
+      }
+      renderChat();
+
+      /* --- Stream container used for pretty streaming */
+      function createStreamContainer() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'streaming-output text-xs sm:text-sm';
+        const content = document.createElement('div');
+        content.className = 'streaming-output';
+        const cursor = document.createElement('span');
+        cursor.className = 'streaming-cursor';
+        wrapper.appendChild(content);
+        wrapper.appendChild(cursor);
+
+        let tokenBuffer = [];
+        let flushTimeout = null;
+
+        function flushNow() {
+          if (!tokenBuffer.length) return;
+          const chunk = tokenBuffer.join('');
+          tokenBuffer = [];
+          const span = document.createElement('span');
+          span.className = 'streaming-token';
+          span.textContent = chunk;
+          content.appendChild(span);
+          void span.offsetWidth;
+          span.classList.add('show');
+        }
+
+        function pushToken(tok) {
+          tokenBuffer.push(tok);
+          if (flushTimeout) return;
+          flushTimeout = setTimeout(() => { flushNow(); flushTimeout = null; }, 40);
+        }
+
+        function finish() { if (flushTimeout) { clearTimeout(flushTimeout); flushTimeout = null; } flushNow(); if (cursor.parentNode) cursor.parentNode.removeChild(cursor); }
+
+        return { wrapper, content, cursor, pushToken, finish };
+      }
+
+      /* --- Backend call (Vercel) with fallback --- */
+      async function callBackend(messages, model, onChunk, onDone, onError) {
+        try {
+          const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages }) });
+          if (!res.ok) throw new Error('Backend error');
+          const data = await res.json();
+          const text = data?.choices?.[0]?.message?.content || data?.output || '';
+          onDone(text);
+        } catch (e) {
+          // demo fallback: simple generated summary based on last user message
+          const lastUser = [...messages].reverse().find(m => m.role === 'user')?.content || 'your input';
+          const fallback = `Demo mode — no backend available.\n\nSummary for: ${lastUser}\n\n- Main idea: ...\n- Key facts: ...\n- Example: ...\n\n(Connect your Vercel backend with OPENAI_API_KEY to enable the real model)`;
+          // stream fallback
+          const tokens = fallback.split(/(\s+)/).filter(Boolean);
+          let i = 0; const interval = setInterval(() => {
+            i++; onChunk(tokens.slice(0, i).join('')); if (i >= tokens.length) { clearInterval(interval); onDone(fallback); }
+          }, 18);
+        }
+      }
+
+      /* --- Chat interaction --- */
+      function buildMessages(userText) {
+        const selectedLang = langSelect.value === 'auto' ? detectBrowserLanguage() : langSelect.value;
+        const systemPrompt = `You are an intelligent study assistant. Respond in target language code: ${selectedLang}. Format answers concisely using markdown headings and bullet points.`;
+        const msgs = [{ role: 'system', content: systemPrompt }];
+        if (includeNotes.checked && sourceText.value.trim()) msgs.push({ role: 'system', content: `STUDY CONTEXT:\n\n${sourceText.value.trim()}` });
+        msgs.push({ role: 'user', content: userText });
+        return msgs;
+      }
+
+      async function sendChatMessage() {
+        const text = chatInput.value.trim(); if (!text) return;
+        chatInput.value = ''; chatInput.style.height = 'auto';
+        appendToChat('user', text);
+
+        const msgs = buildMessages(text);
+        const msgDiv = document.createElement('div'); msgDiv.className = 'flex justify-start';
+        const bubble = document.createElement('div'); bubble.className = 'max-w-[88%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-700/80 shadow-sm text-xs';
+        const streamContainer = createStreamContainer(); bubble.appendChild(streamContainer.wrapper); msgDiv.appendChild(bubble); chatPane.appendChild(msgDiv); chatPane.scrollTop = chatPane.scrollHeight;
+
+        try {
+          await callBackend(msgs, chatModel.value, (partial) => { streamContainer.pushToken(partial.slice(streamContainer.content.textContent.length)); chatPane.scrollTop = chatPane.scrollHeight; }, (full) => { streamContainer.finish(); bubble.innerHTML = formatMarkdown(full); appendToChat('assistant', full); }, (err) => { streamContainer.finish(); bubble.innerHTML = `<span class="text-rose-500">Error: ${escapeHtml(err.message || err)}</span>`; showToast('Chat failed'); });
+        } catch (err) { streamContainer.finish(); bubble.innerHTML = `<span class="text-rose-500">Error: ${escapeHtml(err.message || err)}</span>`; showToast('Chat error'); }
+      }
+
+      sendChatBtn.addEventListener('click', sendChatMessage);
+      chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
+
+      /* --- Local summarizer (fallback) --- */
+      function processNotes(text, format, level) {
+        const paragraphs = text.split(/\n+/).filter(p => p.trim().length > 0);
+        let sentences = text.match(/[^.!?]+[.!?]+/g) || [text]; sentences = sentences.map(s => s.trim()).filter(s => s.length > 8);
+        let countMultiplier = 5; if (level === 'ultra') countMultiplier = 3; if (level === 'comprehensive') countMultiplier = 10;
+        const words = text.split(/\s+/);
+        const capitalizedPhrases = []; for (let i = 0; i < words.length - 1; i++) { if (words[i][0] && words[i][0] === words[i][0].toUpperCase() && words[i].length > 3 && /^[A-Z]/.test(words[i])) capitalizedPhrases.push(words[i].replace(/[^a-zA-Z]/g, '')); }
+        const uniqueKeywords = [...new Set(capitalizedPhrases)];
+
+        let htmlOutput = ''; let rawTextOutput = '';
+
+        if (format === 'bullets') {
+          const highlights = sentences.slice(0, Math.min(countMultiplier * 2, Math.max(3, Math.floor(sentences.length))));
+          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2 uppercase tracking-wide text-xs">Core Bullet Summary (${level.toUpperCase()})</h4>`;
+          htmlOutput += `<ul class="space-y-1.5 pl-4 list-disc marker:text-indigo-500 text-xs sm:text-sm">`;
+          rawTextOutput += `CORE BULLET SUMMARY (${level.toUpperCase()}):\n`;
+          highlights.forEach(s => { htmlOutput += `<li>${escapeHtml(s)}</li>`; rawTextOutput += `- ${s}\n`; });
+          htmlOutput += `</ul>`;
+        } else if (format === 'definitions') {
+          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2.5 uppercase tracking-wide text-xs">Key Definitions & Concepts</h4>`;
+          htmlOutput += `<div class="grid gap-2.5">`;
+          rawTextOutput += `KEY DEFINITIONS & CONCEPTS:\n`;
+          const termsToUse = uniqueKeywords.length > 0 ? uniqueKeywords : ['Primary Subject', 'Core Principle', 'Key Variable', 'Mechanism'];
+          termsToUse.slice(0, countMultiplier + 2).forEach((term, idx) => {
+            const relatedSentence = sentences[idx % sentences.length] || 'Essential concept identified within the source material.';
+            htmlOutput += `<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700"><span class="font-semibold text-indigo-600 dark:text-indigo-400 block mb-1 text-xs">${escapeHtml(term)}</span><span class="text-slate-600 dark:text-slate-300 text-xs sm:text-sm">${escapeHtml(relatedSentence)}</span></div>`;
+            rawTextOutput += `• ${term}: ${relatedSentence}\n`;
+          });
+          htmlOutput += `</div>`;
+        } else if (format === 'summary') {
+          const paraCount = level === 'ultra' ? 1 : (level === 'comprehensive' ? 4 : 2);
+          const summaryParagraphs = paragraphs.slice(0, paraCount).join('\n\n');
+          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2 uppercase tracking-wide text-xs">TL;DR Summary Paragraph</h4>`;
+          htmlOutput += `<p class="leading-relaxed text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs sm:text-sm">${escapeHtml(summaryParagraphs || text.substring(0,400))}</p>`;
+          rawTextOutput += `TL;DR SUMMARY:\n${summaryParagraphs || text.substring(0,400)}`;
+        } else if (format === 'exam') {
+          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2.5 uppercase tracking-wide text-xs">Exam Q&A Flashcards</h4>`;
+          htmlOutput += `<div class="space-y-2.5">`;
+          rawTextOutput += `EXAM Q&A FLASHCARDS:\n`;
+          const sampleQuestions = [
+            { q: 'What is the primary objective or main topic discussed?', a: sentences[0] || 'Core premise of the text.' },
+            { q: 'What key mechanism or supporting factor drives this concept?', a: sentences[1] || 'Supporting structural detail.' },
+            { q: 'What crucial implication or relationship is highlighted?', a: sentences[2] || 'Key takeaway from the material.' }
+          ];
+          sampleQuestions.forEach((qa, i) => {
+            htmlOutput += `<div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700"><div class="font-semibold text-indigo-600 dark:text-indigo-400 text-xs mb-1">Q${i+1}: ${escapeHtml(qa.q)}</div><div class="text-slate-600 dark:text-slate-300 text-xs sm:text-sm"><strong>A:</strong> ${escapeHtml(qa.a)}</div></div>`;
+            rawTextOutput += `Q${i+1}: ${qa.q}\nA: ${qa.a}\n\n`;
+          });
+          htmlOutput += `</div>`;
+        }
+
+        return { htmlOutput, rawTextOutput };
+      }
+
+      let lastGeneratedText = '';
+      let lastHtmlOutput = '';
+
+      /* --- Generate Action --- */
+      generateBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const text = sourceText.value.trim(); if (!text) { showToast('Please paste study material first'); sourceText.focus(); return; }
+        emptyState.classList.add('hidden'); resultContent.classList.add('hidden'); loadingState.classList.remove('hidden'); outputActions.classList.add('opacity-50','pointer-events-none');
+        const format = formatSelect.value; const level = concisenessLevel.value; const targetLang = langSelect.value === 'auto' ? detectBrowserLanguage() : langSelect.value;
+
+        try {
+          if (aiToggle.checked) {
+            // Prefer backend; fall back to local key if present
+            const messages = [{ role: 'system', content: `Generate study notes in language code: ${targetLang}. Format: ${format}. Conciseness: ${level}.` }, { role: 'user', content: text }];
+            await callBackend(messages, 'gpt-4o-mini', (partial) => { lastGeneratedText = partial; resultContent.innerHTML = formatMarkdown(partial); }, (full) => { lastGeneratedText = full; lastHtmlOutput = formatMarkdown(full); loadingState.classList.add('hidden'); resultContent.innerHTML = lastHtmlOutput; resultContent.classList.remove('hidden'); outputActions.classList.remove('opacity-50','pointer-events-none'); showToast('Notes generated successfully!'); }, (err) => { loadingState.classList.add('hidden'); showToast('AI error'); });
+          } else {
+            const localRes = processNotes(text, format, level); lastGeneratedText = localRes.rawTextOutput; lastHtmlOutput = localRes.htmlOutput; loadingState.classList.add('hidden'); resultContent.innerHTML = lastHtmlOutput; resultContent.classList.remove('hidden'); outputActions.classList.remove('opacity-50','pointer-events-none'); showToast('Notes generated (local mode)');
+          }
+        } catch (err) { loadingState.classList.add('hidden'); showToast('Error: ' + (err.message||err)); }
+      });
+
+      /* --- Action Buttons --- */
+      copyBtn.addEventListener('click', () => { if (!lastGeneratedText) return; navigator.clipboard.writeText(lastGeneratedText).then(() => showToast('Notes copied to clipboard!')); });
+      downloadTxtBtn.addEventListener('click', () => { if (!lastGeneratedText) return; const blob = new Blob([lastGeneratedText], { type: 'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'study-notes.txt'; a.click(); showToast('Downloaded .txt'); });
+      downloadHtmlBtn.addEventListener('click', () => { if (!lastGeneratedText) return; const blob = new Blob([`<!DOCTYPE html><html><body style="font-family:sans-serif;padding:2rem;">${lastHtmlOutput}</body></html>`], { type: 'text/html' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'study-notes.html'; a.click(); showToast('Downloaded .html'); });
+
     });
-
-    // Simple toast
-    const toast = document.getElementById('toast'); function showToast(msg){ document.getElementById('toastMsg').textContent = msg; toast.classList.remove('translate-y-20','opacity-0'); setTimeout(()=>toast.classList.add('translate-y-20','opacity-0'),3000); }
-
-    // Copy / download
-    document.getElementById('copyBtnMain').addEventListener('click', ()=>{ const t = resultContentMain.innerText || ''; if(!t) return; navigator.clipboard.writeText(t); showToast('Copied'); });
-    document.getElementById('downloadTxtBtnMain').addEventListener('click', ()=>{ const t = resultContentMain.innerText || ''; if(!t) return; const b=new Blob([t],{type:'text/plain'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download='notes.txt'; a.click(); URL.revokeObjectURL(u); });
-    document.getElementById('downloadHtmlBtnMain').addEventListener('click', ()=>{ const html = `<!doctype html><html><head><meta charset="utf-8"><title>Notes</title></head><body>${resultContentMain.innerHTML}</body></html>`; const b=new Blob([html],{type:'text/html'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download='notes.html'; a.click(); URL.revokeObjectURL(u); });
-
-    // Init
-    renderChatDock(); updateStats();
-
   </script>
 </body>
 </html>
