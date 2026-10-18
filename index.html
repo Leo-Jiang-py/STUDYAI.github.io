@@ -12,8 +12,8 @@
   <meta name="theme-color" content="#7c3aed">
 
   <!-- Dynamic SVG Logo as App Icon -->
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%237c3aed'><rect width='512' height='512' rx='128' fill='url(%23g)'/><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%234f46e5'/><stop offset='100%' stop-color='%23d946ef'/></linearGradient></defs><path fill='white' d='M256 120c-70.7 0-128 57.3-128 128s57.3 128 128 128 128-57.3 128-128-57.3-128-128-128zm0 210c-45.3 0-82-36.7-82-82s36.7-82 82-82 82 36.7 82 82-36.7 82-82 82z'/><circle cx='256' cy='248' r='45' fill='white'/></svg>">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%237c3aed'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>📖</text></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%237c3aed'><rect width='512' height='512' rx='128' fill='url(%23g)'/><de[...]">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%237c3aed'/><text x='50'[...]">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -113,6 +113,12 @@
 
         <button id="setKeyBtn" class="key-badge bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition">API Key</button>
 
+        <!-- Use Browser Key Toggle -->
+        <label class="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-xl bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+          <input id="useBrowserKey" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+          <span>Use browser key</span>
+        </label>
+
         <button id="themeToggle" class="w-9 h-9 rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
           <i id="themeIcon" class="fa-solid fa-moon text-xs"></i>
         </button>
@@ -135,26 +141,17 @@
           </div>
         </div>
 
-        <textarea id="sourceText" placeholder="Paste study material here..." class="mt-4 w-full min-h-[280px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 focus:border-indigo-500 outline-none resize-vertical text-sm transition"></textarea>
+        <textarea id="sourceText" placeholder="Paste study material here..." class="mt-4 w-full min-h-[280px] p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:bord[...]"></textarea>
 
         <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold" id="uiFormatLabel">Format</label>
-            <select id="formatSelect" class="mt-1 w-full rounded-xl p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-indigo-500">
-              <option value="bullets">Bullet Points (Concise)</option>
-              <option value="definitions">Key Definitions & Terms</option>
-              <option value="summary">TL;DR Summary Paragraph</option>
-              <option value="exam">Exam Q&A Flashcards</option>
-            </select>
+            <select id="formatSelect" class="mt-1 w-full rounded-xl p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-indigo-5[...]"></select>
           </div>
 
           <div>
             <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold" id="uiConcisenessLabel">Conciseness</label>
-            <select id="concisenessLevel" class="mt-1 w-full rounded-xl p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-indigo-500">
-              <option value="ultra">Ultra-short</option>
-              <option value="balanced" selected>Balanced</option>
-              <option value="comprehensive">Comprehensive</option>
-            </select>
+            <select id="concisenessLevel" class="mt-1 w-full rounded-xl p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-indi[...]"></select>
           </div>
         </div>
       </div>
@@ -165,7 +162,7 @@
           <span class="font-semibold text-slate-600 dark:text-slate-300">OpenAI Engine</span>
         </label>
 
-        <button id="generateBtn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white font-semibold text-xs shadow-xl shadow-indigo-500/20 hover:brightness-105 active:scale-95 transition">
+        <button id="generateBtn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white font-semibold text-xs shadow-xl shadow-in[...]
           <i class="fa-solid fa-wand-magic-sparkles"></i>
           <span id="uiGenerateBtn">Generate Notes</span>
         </button>
@@ -328,6 +325,7 @@
       const includeNotes = document.getElementById('includeNotes');
       const clearChatBtn = document.getElementById('clearChatBtn');
       const chatContextBadge = document.getElementById('chatContextBadge');
++      const useBrowserKey = document.getElementById('useBrowserKey');
 
       /* --- Theme Toggle --- */
       if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -377,6 +375,11 @@
         const entered = prompt('Paste your OpenAI API key (stored locally in browser):\nExample: sk-...', current);
         if (entered !== null && entered.trim()) { storeApiKey(entered.trim()); showToast('API key saved!'); aiToggle.checked = true; }
       });
++
++      useBrowserKey.addEventListener('change', () => {
++        if (useBrowserKey.checked) showToast('Browser key enabled. Keep your key private — not for production.');
++        else showToast('Browser key disabled. Using server route when available.');
++      });
 
       /* --- Formatting Engine --- */
       function escapeHtml(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -437,7 +440,7 @@
       }
       renderChat();
 
-      /* --- Stream container used for pretty streaming */
+      /* --- Stream container used for pretty streaming --- */
       function createStreamContainer() {
         const wrapper = document.createElement('div');
         wrapper.className = 'streaming-output text-xs sm:text-sm';
@@ -474,25 +477,60 @@
         return { wrapper, content, cursor, pushToken, finish };
       }
 
-      /* --- Backend call (Vercel) with fallback --- */
-      async function callBackend(messages, model, onChunk, onDone, onError) {
-        try {
-          const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages }) });
-          if (!res.ok) throw new Error('Backend error');
-          const data = await res.json();
-          const text = data?.choices?.[0]?.message?.content || data?.output || '';
-          onDone(text);
-        } catch (e) {
-          // demo fallback: simple generated summary based on last user message
-          const lastUser = [...messages].reverse().find(m => m.role === 'user')?.content || 'your input';
-          const fallback = `Demo mode — no backend available.\n\nSummary for: ${lastUser}\n\n- Main idea: ...\n- Key facts: ...\n- Example: ...\n\n(Connect your Vercel backend with OPENAI_API_KEY to enable the real model)`;
-          // stream fallback
-          const tokens = fallback.split(/(\s+)/).filter(Boolean);
-          let i = 0; const interval = setInterval(() => {
-            i++; onChunk(tokens.slice(0, i).join('')); if (i >= tokens.length) { clearInterval(interval); onDone(fallback); }
-          }, 18);
-        }
-      }
+      /* --- Backend call (Vercel) with fallback and browser-key option --- */
++      async function openAIRequestDirect(messages, model) {
++        const apiKey = getStoredApiKey();
++        if (!apiKey) throw new Error('No API key found in browser storage');
++        const body = { model: model || 'gpt-4o-mini', messages, temperature: 0.5 };
++        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
++          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` }, body: JSON.stringify(body)
++        });
++        if (!resp.ok) {
++          const err = await resp.json().catch(()=>({}));
++          throw new Error(err.error?.message || `OpenAI API error (${resp.status})`);
++        }
++        const data = await resp.json();
++        return data?.choices?.[0]?.message?.content || '';
++      }
++
+       async function callBackend(messages, model, onChunk, onDone, onError) {
+         try {
+           const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages }) });
+           if (!res.ok) throw new Error('Backend error');
+           const data = await res.json();
+           const text = data?.choices?.[0]?.message?.content || data?.output || '';
+           onDone(text);
+         } catch (e) {
+-          // demo fallback: simple generated summary based on last user message
+-          const lastUser = [...messages].reverse().find(m => m.role === 'user')?.content || 'your input';
+-          const fallback = `Demo mode — no backend available.\n\nSummary for: ${lastUser}\n\n- Main idea: ...\n- Key facts: ...\n- Example: ...\n\n(Connect your Vercel backend with OPENAI_API_KEY to enable the real model)`;
+-          // stream fallback
+-          const tokens = fallback.split(/(\s+)/).filter(Boolean);
+-          let i = 0; const interval = setInterval(() => {
+-            i++; onChunk(tokens.slice(0, i).join('')); if (i >= tokens.length) { clearInterval(interval); onDone(fallback); }
+-          }, 18);
++          // Try browser key path if enabled
++          const shouldUseBrowser = useBrowserKey && useBrowserKey.checked && getStoredApiKey();
++          if (shouldUseBrowser) {
++            try {
++              const txt = await openAIRequestDirect(messages, model);
++              onDone(txt);
++              return;
++            } catch (errDirect) {
++              console.warn('Direct browser call failed:', errDirect.message || errDirect);
++              // fallthrough to demo fallback
++            }
++          }
++          // demo fallback: simple generated summary based on last user message
++          const lastUser = [...messages].reverse().find(m => m.role === 'user')?.content || 'your input';
++          const fallback = `Demo mode — no backend available.\n\nSummary for: ${lastUser}\n\n- Main idea: ...\n- Key facts: ...\n- Example: ...\n\n(Enable "Use browser key" and paste your key, or deploy the /api/chat backend with OPENAI_API_KEY)`;
++          // stream fallback
++          const tokens = fallback.split(/(\s+)/).filter(Boolean);
++          let i = 0; const interval = setInterval(() => {
++            i++; onChunk(tokens.slice(0, i).join('')); if (i >= tokens.length) { clearInterval(interval); onDone(fallback); }
++          }, 18);
+         }
+       }
 
       /* --- Chat interaction --- */
       function buildMessages(userText) {
