@@ -491,290 +491,251 @@
           msgDiv.appendChild(bubble);
           chatPane.appendChild(msgDiv);
         });
-        chatPane.scrollTop = chatPane.scrollHeight; 
+        chatPane.scrollTop = chatPane.scrollHeight;
       }
+      renderChat();
 
-      function appendToChat(role, content) {
-        const history = loadChatHistory();
-        history.push({ role, content });
-        saveChatHistory(history);
-        renderChat();
-      }
-
-      clearChatBtn.addEventListener('click', () => { 
-        if (confirm('Clear chat history?')) { saveChatHistory([]); renderChat(); } 
-      });
-
-      openChatBtn.addEventListener('click', () => { chatModal.classList.remove('hidden'); updateStats(); renderChat(); });
-      closeChatBtn.addEventListener('click', () => chatModal.classList.add('hidden'));
-
-      chatInput.addEventListener('input', () => {
-        chatInput.style.height = 'auto';
-        chatInput.style.height = `${Math.min(chatInput.scrollHeight, 112)}px`;
-      });
-
-      /* --- Streaming Buffer Container --- */
-      function createStreamContainer() {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'streaming-output text-xs sm:text-sm';
-        const content = document.createElement('div');
-        content.className = 'streaming-output';
-        const cursor = document.createElement('span');
-        cursor.className = 'streaming-cursor';
-        wrapper.appendChild(content);
-        wrapper.appendChild(cursor);
-
-        let tokenBuffer = [];
-        let flushTimeout = null;
-
-        function flushNow() {
-          if (!tokenBuffer.length) return;
-          const chunk = tokenBuffer.join('');
-          tokenBuffer = [];
-          const span = document.createElement('span');
-          span.className = 'streaming-token';
-          span.textContent = chunk;
-          content.appendChild(span);
-          void span.offsetWidth;
-          span.classList.add('show');
-          wrapper.scrollIntoView({ block: 'nearest' });
-        }
-
-        function pushToken(tok) {
-          tokenBuffer.push(tok);
-          if (flushTimeout) return;
-          flushTimeout = setTimeout(() => { flushNow(); flushTimeout = null; }, 40);
-        }
-
-        function finish() {
-          if (flushTimeout) { clearTimeout(flushTimeout); flushTimeout = null; }
-          flushNow();
-          if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
-        }
-        return { wrapper, content, cursor, pushToken, finish };
-      }
-
-      /* --- Direct API & Streaming Call --- */
-      function buildMessages(userText) {
-        const selectedLang = langSelect.value === 'auto' ? detectBrowserLanguage() : langSelect.value;
-        const systemPrompt = `You are an intelligent study assistant. Respond in target language code: ${selectedLang}. Format answers concisely using markdown headings and bullet points.`;
-        const msgs = [{ role: 'system', content: systemPrompt }];
-        if (includeNotes.checked && sourceText.value.trim()) {
-          msgs.push({ role: 'user', content: `[STUDY CONTEXT START]\n${sourceText.value.trim()}\n[STUDY CONTEXT END]` });
-        }
-        msgs.push({ role: 'user', content: userText });
-        return msgs;
-      }
-
-      async function openAIRequestDirect(payload) {
+      /* --- OpenAI API Stream Engine --- */
+      async function streamOpenAICall(messages, model, onChunk, onDone, onError) {
         const apiKey = getStoredApiKey();
-        if (!apiKey) throw new Error('No API key found. Click "API Key" in header to set it.');
-        const body = { model: payload.model || 'gpt-4o-mini', messages: payload.messages, temperature: 0.5 };
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-          body: JSON.stringify(body)
-        });
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err.error?.message || `API Error (${response.status})`);
+        if (!apiKey) {
+          onError("Missing API Key. Please click 'API Key' to set it.");
+          return;
         }
-        const data = await response.json();
-        return data.choices[0]?.message?.content || '';
+
+        try {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+              model: model,
+              messages: messages,
+              stream: true
+            })
+          });
+
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error?.message || "Failed to fetch from OpenAI");
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder("utf-8");
+          let fullText = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n").filter(line => line.trim() !== "");
+            
+            for (const line of lines) {
+              if (line === "data: [DONE]") {
+                onDone(fullText);
+                return;
+              }
+              if (line.startsWith("data: ")) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  if (data.choices && data.choices[0].delta.content) {
+                    fullText += data.choices[0].delta.content;
+                    onChunk(fullText);
+                  }
+                } catch (e) {
+                  // ignore JSON parse errors for incomplete chunks
+                }
+              }
+            }
+          }
+          onDone(fullText);
+        } catch (error) {
+          onError(error.message);
+        }
       }
 
-      /* --- Chat Send Action --- */
+      /* --- Chat Interaction --- */
+      openChatBtn.addEventListener('click', () => {
+        chatModal.classList.remove('hidden');
+        renderChat();
+        setTimeout(() => chatInput.focus(), 100);
+      });
+
+      closeChatBtn.addEventListener('click', () => {
+        chatModal.classList.add('hidden');
+      });
+
+      clearChatBtn.addEventListener('click', () => {
+        if(confirm('Clear chat history?')) {
+          localStorage.removeItem('openai_chat_history');
+          renderChat();
+        }
+      });
+
       async function sendChatMessage() {
         const text = chatInput.value.trim();
         if (!text) return;
+        
         chatInput.value = '';
         chatInput.style.height = 'auto';
-        appendToChat('user', text);
+        
+        const history = loadChatHistory();
+        history.push({ role: 'user', content: text });
+        saveChatHistory(history);
+        renderChat();
 
-        const msgs = buildMessages(text);
+        // Create temporary AI message bubble
         const msgDiv = document.createElement('div');
         msgDiv.className = 'flex justify-start';
-
         const bubble = document.createElement('div');
-        bubble.className = 'max-w-[88%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-700/80 shadow-sm text-xs';
-        
-        const streamContainer = createStreamContainer();
-        bubble.appendChild(streamContainer.wrapper);
+        bubble.className = 'max-w-[88%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3.5 rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-slate-700/80 shadow-sm relative text-xs';
+        bubble.innerHTML = '<span class="streaming-cursor"></span>';
         msgDiv.appendChild(bubble);
         chatPane.appendChild(msgDiv);
         chatPane.scrollTop = chatPane.scrollHeight;
 
-        let accumulatedText = '';
-
-        try {
-          const apiKey = getStoredApiKey();
-          if (apiKey) {
-            accumulatedText = await openAIRequestDirect({ messages: msgs, model: chatModel.value });
-            streamContainer.finish();
-            bubble.innerHTML = formatMarkdown(accumulatedText);
-            appendToChat('assistant', accumulatedText);
-          } else {
-            let resp;
-            try {
-              resp = await fetch('/api/openai', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mode: 'chat', messages: msgs, model: chatModel.value })
-              });
-            } catch (networkError) {
-              throw new Error("Cannot connect to proxy. Please set your API Key in the top right menu.");
-            }
-
-            if (!resp.ok) throw new Error('Proxy server offline. Set local API Key.');
-            const reader = resp.body.getReader();
-            const decoder = new TextDecoder();
-            while (true) {
-              const { value, done } = await reader.read();
-              if (done) break;
-              const tok = decoder.decode(value);
-              accumulatedText += tok;
-              streamContainer.pushToken(tok);
-              chatPane.scrollTop = chatPane.scrollHeight;
-            }
-            streamContainer.finish();
-            bubble.innerHTML = formatMarkdown(accumulatedText);
-            appendToChat('assistant', accumulatedText);
-          }
-        } catch (err) {
-          streamContainer.finish();
-          bubble.innerHTML = `<span class="text-rose-500 font-medium">Chat error: ${escapeHtml(err.message)}</span>`;
-          showToast('Chat request failed');
+        let messages = [];
+        if (includeNotes.checked && sourceText.value.trim().length > 0) {
+          messages.push({ role: "system", content: "You are an AI study assistant. The user has attached the following study notes as context:\n\n" + sourceText.value });
+        } else {
+          messages.push({ role: "system", content: "You are a helpful AI study assistant." });
         }
+        
+        // append recent history
+        const recentHistory = history.slice(-6);
+        messages = messages.concat(recentHistory);
+
+        const model = chatModel.value;
+
+        await streamOpenAICall(
+          messages, 
+          model,
+          (partial) => {
+            bubble.innerHTML = formatMarkdown(partial) + '<span class="streaming-cursor"></span>';
+            chatPane.scrollTop = chatPane.scrollHeight;
+          },
+          (full) => {
+            history.push({ role: 'assistant', content: full });
+            saveChatHistory(history);
+            renderChat();
+          },
+          (err) => {
+            bubble.innerHTML = `<span class="text-rose-500">Error: ${err}</span>`;
+            chatPane.scrollTop = chatPane.scrollHeight;
+          }
+        );
       }
 
       sendChatBtn.addEventListener('click', sendChatMessage);
-      chatInput.addEventListener('keydown', (e) => { 
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } 
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendChatMessage();
+        }
       });
 
-      /* --- Expanded Multi-Format Local Summarizer --- */
-      function processNotes(text, format, level) {
-        const paragraphs = text.split(/\n+/).filter(p => p.trim().length > 0);
-        let sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-        sentences = sentences.map(s => s.trim()).filter(s => s.length > 8);
+      /* --- Note Generation --- */
+      let lastGeneratedText = "";
 
-        let countMultiplier = 5;
-        if (level === 'ultra') countMultiplier = 3;
-        if (level === 'comprehensive') countMultiplier = 10;
-
-        const words = text.split(/\s+/);
-        const capitalizedPhrases = [];
-        for (let i = 0; i < words.length - 1; i++) {
-          if (words[i][0] && words[i][0] === words[i][0].toUpperCase() && words[i].length > 3 && /^[A-Z]/.test(words[i])) {
-            capitalizedPhrases.push(words[i].replace(/[^a-zA-Z]/g, ''));
-          }
+      generateBtn.addEventListener('click', async () => {
+        if (!aiToggle.checked) {
+          showToast("Please enable the OpenAI Engine first.");
+          return;
         }
-        const uniqueKeywords = [...new Set(capitalizedPhrases)];
 
-        let htmlOutput = '';
-        let rawTextOutput = '';
-
-        if (format === 'bullets') {
-          const highlights = sentences.slice(0, Math.min(countMultiplier * 2, Math.max(3, Math.floor(sentences.length))));
-          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2 uppercase tracking-wide text-xs">Core Bullet Summary (${level.toUpperCase()})</h4><ul class="space-y-1.5 pl-4 list-disc marker:text-indigo-500 text-xs sm:text-sm">`;
-          rawTextOutput += `CORE BULLET SUMMARY (${level.toUpperCase()}):\n`;
-          highlights.forEach(s => { htmlOutput += `<li>${escapeHtml(s)}</li>`; rawTextOutput += `- ${s}\n`; });
-          htmlOutput += `</ul>`;
-        } else if (format === 'definitions') {
-          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2.5 uppercase tracking-wide text-xs">Key Definitions & Concepts</h4><div class="grid gap-2.5">`;
-          rawTextOutput += `KEY DEFINITIONS & CONCEPTS:\n`;
-          const termsToUse = uniqueKeywords.length > 0 ? uniqueKeywords : ['Primary Subject', 'Core Principle', 'Key Variable', 'Mechanism'];
-          termsToUse.slice(0, countMultiplier + 2).forEach((term, idx) => {
-            const relatedSentence = sentences[idx % sentences.length] || 'Essential concept identified within the source material.';
-            htmlOutput += `<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700"><span class="font-semibold text-indigo-600 dark:text-indigo-400 block mb-1 text-xs">${escapeHtml(term)}</span><span class="text-slate-600 dark:text-slate-300 text-xs sm:text-sm">${escapeHtml(relatedSentence)}</span></div>`;
-            rawTextOutput += `• ${term}: ${relatedSentence}\n`;
-          });
-          htmlOutput += `</div>`;
-        } else if (format === 'summary') {
-          const paraCount = level === 'ultra' ? 1 : (level === 'comprehensive' ? 4 : 2);
-          const summaryParagraphs = paragraphs.slice(0, paraCount).join('\n\n');
-          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2 uppercase tracking-wide text-xs">TL;DR Summary Paragraph</h4><p class="leading-relaxed text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs sm:text-sm">${escapeHtml(summaryParagraphs || text.substring(0,400))}</p>`;
-          rawTextOutput += `TL;DR SUMMARY:\n${summaryParagraphs || text.substring(0, 400)}`;
-        } else if (format === 'exam') {
-          htmlOutput += `<h4 class="font-bold text-indigo-600 dark:text-indigo-400 mb-2.5 uppercase tracking-wide text-xs">Exam Q&A Flashcards</h4><div class="space-y-2.5">`;
-          rawTextOutput += `EXAM Q&A FLASHCARDS:\n`;
-          const sampleQuestions = [
-            { q: 'What is the primary objective or main topic discussed?', a: sentences[0] || 'Core premise of the text.' },
-            { q: 'What key mechanism or supporting factor drives this concept?', a: sentences[1] || 'Supporting structural detail.' },
-            { q: 'What crucial implication or relationship is highlighted?', a: sentences[2] || 'Key takeaway from the material.' }
-          ];
-          sampleQuestions.forEach((qa, i) => {
-            htmlOutput += `<div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700"><div class="font-semibold text-indigo-600 dark:text-indigo-400 text-xs mb-1">Q${i+1}: ${escapeHtml(qa.q)}</div><div class="text-slate-600 dark:text-slate-300 text-xs sm:text-sm"><strong>A:</strong> ${escapeHtml(qa.a)}</div></div>`;
-            rawTextOutput += `Q${i+1}: ${qa.q}\nA: ${qa.a}\n\n`;
-          });
-          htmlOutput += `</div>`;
+        const material = sourceText.value.trim();
+        if (!material) {
+          showToast("Please paste some study material first.");
+          return;
         }
-        return { htmlOutput, rawTextOutput };
-      }
-
-      let lastGeneratedText = '';
-      let lastHtmlOutput = '';
-
-      generateBtn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const text = sourceText.value.trim();
-        if (!text) { showToast('Please paste study material first'); sourceText.focus(); return; }
 
         emptyState.classList.add('hidden');
         resultContent.classList.add('hidden');
-        loadingState.classList.remove('hidden');
         outputActions.classList.add('opacity-50', 'pointer-events-none');
+        outputActions.classList.remove('opacity-100', 'pointer-events-auto');
+        loadingState.classList.remove('hidden');
 
         const format = formatSelect.value;
-        const level = concisenessLevel.value;
-        const targetLang = langSelect.value === 'auto' ? detectBrowserLanguage() : langSelect.value;
+        const conciseness = concisenessLevel.value;
+        const lang = langSelect.value === 'auto' ? detectBrowserLanguage() : langSelect.value;
 
-        try {
-          if (aiToggle.checked && getStoredApiKey()) {
-            const promptText = `Generate study notes from the following text in language code "${targetLang}". Format: "${format}", Conciseness level: "${level}".\n\nTEXT:\n${text}`;
-            const aiResult = await openAIRequestDirect({ messages: [{ role: 'user', content: promptText }] });
-            lastGeneratedText = aiResult;
-            lastHtmlOutput = formatMarkdown(aiResult);
-          } else {
-            const localRes = processNotes(text, format, level);
-            lastGeneratedText = localRes.rawTextOutput;
-            lastHtmlOutput = localRes.htmlOutput;
+        let prompt = `Analyze the following study material and generate notes.\n\n`;
+        prompt += `Target Language Code: ${lang}\n`;
+        prompt += `Conciseness Level: ${conciseness}\n`;
+        prompt += `Output Format: ${format}\n\n`;
+        prompt += `Material:\n${material}`;
+
+        loadingState.classList.add('hidden');
+        resultContent.classList.remove('hidden');
+        resultContent.innerHTML = '<div class="streaming-output"><span class="streaming-cursor"></span></div>';
+
+        await streamOpenAICall(
+          [
+            { role: "system", content: "You are a specialized study note summarizer. Follow the exact formatting and conciseness rules provided. Respond ONLY with the requested notes, no conversational filler." },
+            { role: "user", content: prompt }
+          ],
+          "gpt-4o-mini",
+          (partial) => {
+            lastGeneratedText = partial;
+            resultContent.innerHTML = formatMarkdown(partial) + '<span class="streaming-cursor"></span>';
+            resultContent.scrollTop = resultContent.scrollHeight;
+          },
+          (full) => {
+            lastGeneratedText = full;
+            resultContent.innerHTML = formatMarkdown(full);
+            outputActions.classList.remove('opacity-50', 'pointer-events-none');
+            outputActions.classList.add('opacity-100', 'pointer-events-auto');
+          },
+          (err) => {
+            resultContent.innerHTML = `<div class="text-rose-500 font-semibold p-4 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800">Error: ${err}</div>`;
           }
-          loadingState.classList.add('hidden');
-          resultContent.innerHTML = lastHtmlOutput;
-          resultContent.classList.remove('hidden');
-          outputActions.classList.remove('opacity-50', 'pointer-events-none');
-          showToast('Notes generated successfully!');
-        } catch (err) {
-          loadingState.classList.add('hidden');
-          showToast('Error: ' + err.message);
-        }
+        );
       });
 
+      /* --- Exports --- */
       copyBtn.addEventListener('click', () => {
         if (!lastGeneratedText) return;
-        navigator.clipboard.writeText(lastGeneratedText).then(() => showToast('Notes copied to clipboard!'));
+        navigator.clipboard.writeText(lastGeneratedText);
+        showToast('Notes copied to clipboard!');
       });
 
       downloadTxtBtn.addEventListener('click', () => {
         if (!lastGeneratedText) return;
         const blob = new Blob([lastGeneratedText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
+        a.href = url;
         a.download = 'study-notes.txt';
         a.click();
-        showToast('Downloaded .txt');
+        URL.revokeObjectURL(url);
       });
 
       downloadHtmlBtn.addEventListener('click', () => {
         if (!lastGeneratedText) return;
-        const blob = new Blob([`<!DOCTYPE html><html><body style="font-family:sans-serif;padding:2rem;">${lastHtmlOutput}</body></html>`], { type: 'text/html' });
+        const htmlContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>Study Notes</title>
+            <style>body{font-family:sans-serif;line-height:1.6;max-width:800px;margin:2rem auto;padding:1rem;}code{background:#f4f4f4;padding:2px 4px;border-radius:4px;}pre{background:#f4f4f4;padding:1rem;border-radius:8px;overflow-x:auto;}</style>
+          </head>
+          <body>
+            ${formatMarkdown(lastGeneratedText)}
+          </body>
+          </html>
+        `;
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
+        a.href = url;
         a.download = 'study-notes.html';
         a.click();
-        showToast('Downloaded .html');
+        URL.revokeObjectURL(url);
       });
+
     });
   </script>
 </body>
