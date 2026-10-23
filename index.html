@@ -95,7 +95,6 @@
   <header class="relative z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between glass border-b border-slate-200/50 dark:border-slate-800/50 rounded-b-2xl">
       <div class="flex items-center gap-3">
-        <!-- Bookmarkable App Icon Visual -->
         <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
           <i class="fa-solid fa-graduation-cap fa-lg"></i>
         </div>
@@ -106,7 +105,6 @@
       </div>
 
       <div class="flex items-center gap-2 sm:gap-3">
-        <!-- Language Switcher Dropdown -->
         <div class="relative">
           <select id="langSelect" class="bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold px-2.5 py-2 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer">
             <option value="auto">🌐 Auto</option>
@@ -124,7 +122,7 @@
           <span class="text-xs font-semibold hidden sm:inline" id="uiChatBtn">Study Chat</span>
         </button>
 
-        <button id="setKeyBtn" class="key-badge bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition">API Key</button>
+        <button id="setKeyBtn" class="key-badge bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition">Direct Key</button>
 
         <button id="themeToggle" class="w-9 h-9 rounded-xl bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
           <i id="themeIcon" class="fa-solid fa-moon text-xs"></i>
@@ -409,8 +407,8 @@
       }
 
       /* --- API Key Handling --- */
-      function getStoredApiKey() { return localStorage.getItem('OPENAI_API_KEY') || ''; }
-      function storeApiKey(key) { if (key) localStorage.setItem('OPENAI_API_KEY', key); }
+      function getStoredApiKey() { return localStorage.getItem('OPENAI_API_KEY') || localStorage.getItem('DIRECT_OPENAI_KEY') || ''; }
+      function storeApiKey(key) { if (key) { localStorage.setItem('OPENAI_API_KEY', key); localStorage.setItem('DIRECT_OPENAI_KEY', key); } }
 
       setKeyBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -443,7 +441,117 @@
         return `<div class="chat-prose space-y-1.5 leading-relaxed text-xs sm:text-sm">${formatted}</div>`;
       }
 
-      /* --- Chat UI & Storage --- */
+      /* --- API Connector (Vercel Serverless + Client Direct Key Fallback) --- */
+      async function requestAI(messages) {
+        const directKey = getStoredApiKey();
+
+        // 1. If Direct Key is provided in browser, execute directly
+        if (directKey) {
+          const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${directKey}` },
+            body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: 4000, temperature: 0.3 })
+          });
+          if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error?.message || 'Direct API key request failed.'); }
+          const data = await res.json();
+          return data.choices?.[0]?.message?.content || data?.result || '';
+        }
+
+        // 2. Call Vercel Backend Serverless Function Route
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages, prompt: messages[messages.length - 1]?.content, max_tokens: 4000 })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Server HTTP Error (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data?.choices?.[0]?.message?.content || data?.result || data?.output_text || 'No output received.';
+      }
+
+      /* --- Streaming Buffer Component --- */
+      function createStreamContainer(parentEl) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'streaming-output text-xs sm:text-sm';
+        const content = document.createElement('div');
+        content.className = 'streaming-output';
+        const cursor = document.createElement('span');
+        cursor.className = 'streaming-cursor';
+        wrapper.appendChild(content);
+        wrapper.appendChild(cursor);
+        parentEl.appendChild(wrapper);
+
+        let accumulatedText = '';
+
+        return {
+          appendChunk(chunk) {
+            accumulatedText += chunk;
+            content.innerHTML = formatMarkdown(accumulatedText);
+          },
+          finish() {
+            cursor.remove();
+            return accumulatedText;
+          }
+        };
+      }
+
+      /* --- Generate Notes Logic --- */
+      generateBtn.addEventListener('click', async () => {
+        const text = sourceText.value.trim();
+        if (!text) {
+          showToast('Please enter study material first.');
+          return;
+        }
+
+        emptyState.classList.add('hidden');
+        resultContent.classList.add('hidden');
+        loadingState.classList.remove('hidden');
+
+        const targetLang = langSelect.value === 'auto' ? detectBrowserLanguage() : langSelect.value;
+        const format = formatSelect.value;
+        const conciseness = concisenessLevel.value;
+
+        const systemPrompt = `You are an elite academic study assistant.
+Generate comprehensive, highly organized study notes based strictly on the source material provided.
+Format: "${format}". Conciseness level: "${conciseness}".
+Target Language Code: "${targetLang}". Output strictly in target language.`;
+
+        try {
+          const resultText = await requestAI([
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: text }
+          ]);
+
+          currentRawText = resultText;
+          currentHtmlOutput = formatMarkdown(resultText);
+
+          loadingState.classList.add('hidden');
+          resultContent.innerHTML = '';
+          
+          // Animate tokens into workspace container
+          const stream = createStreamContainer(resultContent);
+          resultContent.classList.remove('hidden');
+
+          const tokens = resultText.match(/.{1,4}/g) || [resultText];
+          for (let i = 0; i < tokens.length; i++) {
+            stream.appendChunk(tokens[i]);
+            await new Promise(r => setTimeout(r, 15));
+          }
+          stream.finish();
+
+          outputActions.classList.remove('opacity-50', 'pointer-events-none');
+        } catch (err) {
+          loadingState.classList.add('hidden');
+          resultContent.innerHTML = `<div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs"><strong>Connection Error:</strong> ${escapeHtml(err.message)}<br><br>If hosting statically on GitHub Pages, click <strong>Direct Key</strong> to enter your OpenAI key.</div>`;
+          resultContent.classList.remove('hidden');
+        }
+      });
+
+      /* --- Chat UI Storage & Render --- */
       function loadChatHistory() { try { return JSON.parse(localStorage.getItem('openai_chat_history')||'[]'); } catch(e){ return []; } }
       function saveChatHistory(h){ localStorage.setItem('openai_chat_history', JSON.stringify(h||[])); }
 
@@ -493,13 +601,6 @@
         chatPane.scrollTop = chatPane.scrollHeight; 
       }
 
-      function appendToChat(role, content) {
-        const history = loadChatHistory();
-        history.push({ role, content });
-        saveChatHistory(history);
-        renderChat();
-      }
-
       clearChatBtn.addEventListener('click', () => { 
         if (confirm('Clear chat history?')) { 
           saveChatHistory([]); 
@@ -519,198 +620,36 @@
         chatInput.style.height = `${Math.min(chatInput.scrollHeight, 112)}px`;
       });
 
-      /* --- Streaming Buffer Container --- */
-      function createStreamContainer() {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'streaming-output text-xs sm:text-sm';
-        const content = document.createElement('div');
-        content.className = 'streaming-output';
-        const cursor = document.createElement('span');
-        cursor.className = 'streaming-cursor';
-        wrapper.appendChild(content);
-        wrapper.appendChild(cursor);
-
-        let tokenBuffer = [];
-        let accumulatedText = '';
-
-        function appendChunk(chunk) {
-          accumulatedText += chunk;
-          tokenBuffer.push(chunk);
-          
-          const span = document.createElement('span');
-          span.className = 'streaming-token';
-          span.textContent = chunk;
-          content.appendChild(span);
-          
-          requestAnimationFrame(() => span.classList.add('show'));
-          resultContent.scrollTop = resultContent.scrollHeight;
-        }
-
-        function finish() {
-          if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
-          return accumulatedText;
-        }
-
-        return { wrapper, appendChunk, finish };
-      }
-
-      /* --- Local Smart Summarizer Engine --- */
-      function localSummarizer(text, format, level) {
-        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-        const count = level === 'ultra' ? 3 : (level === 'comprehensive' ? 8 : 5);
-        const topSentences = sentences.slice(0, count).map(s => s.trim());
-
-        let md = `## Core Summary (${level.toUpperCase()})\n\n`;
-        if (format === 'bullets') {
-          topSentences.forEach(s => { md += `- ${s}\n`; });
-        } else if (format === 'definitions') {
-          topSentences.forEach((s, idx) => { md += `**Key Point ${idx + 1}**: ${s}\n\n`; });
-        } else if (format === 'exam') {
-          topSentences.forEach((s, idx) => {
-            md += `**Q${idx + 1}: What is discussed in point ${idx + 1}?**\n**A:** ${s}\n\n`;
-          });
-        } else {
-          md += topSentences.join(' ');
-        }
-        return md;
-      }
-
-      /* --- Generate Notes Action --- */
-      generateBtn.addEventListener('click', async () => {
-        const text = sourceText.value.trim();
-        if (!text) {
-          showToast('Please enter or paste study material first!');
-          sourceText.focus();
-          return;
-        }
-
-        emptyState.classList.add('hidden');
-        resultContent.classList.add('hidden');
-        loadingState.classList.remove('hidden');
-        outputActions.classList.add('opacity-50', 'pointer-events-none');
-        resultContent.innerHTML = '';
-
-        const format = formatSelect.value;
-        const level = concisenessLevel.value;
-        const targetLang = langSelect.value;
-
-        // Offline / Local mode check
-        if (!aiToggle.checked) {
-          setTimeout(() => {
-            const rawMd = localSummarizer(text, format, level);
-            currentRawText = rawMd;
-            currentHtmlOutput = formatMarkdown(rawMd);
-            loadingState.classList.add('hidden');
-            resultContent.innerHTML = currentHtmlOutput;
-            resultContent.classList.remove('hidden');
-            outputActions.classList.remove('opacity-50', 'pointer-events-none');
-            showToast('Notes generated locally!');
-          }, 400);
-          return;
-        }
-
-        // OpenAI Stream Request via /api/openai
-        try {
-          const userKey = getStoredApiKey();
-          const headers = { 'Content-Type': 'application/json' };
-          if (userKey) headers['Authorization'] = `Bearer ${userKey}`;
-
-          const response = await fetch('/api/openai', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              mode: 'summarize',
-              source: text,
-              format,
-              level,
-              language: targetLang,
-              stream: true
-            })
-          });
-
-          if (!response.ok) {
-            throw new Error(`Server returned status ${response.status}`);
-          }
-
-          loadingState.classList.add('hidden');
-          resultContent.classList.remove('hidden');
-
-          const stream = createStreamContainer();
-          resultContent.appendChild(stream.wrapper);
-
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder('utf-8');
-          let fullOutput = '';
-
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            fullOutput += chunk;
-            stream.appendChunk(chunk);
-          }
-
-          const finalRaw = stream.finish();
-          currentRawText = finalRaw || fullOutput;
-          currentHtmlOutput = formatMarkdown(currentRawText);
-          resultContent.innerHTML = currentHtmlOutput;
-          outputActions.classList.remove('opacity-50', 'pointer-events-none');
-          showToast('AI study notes generated successfully!');
-
-        } catch (err) {
-          console.warn('API route call error, falling back to local engine:', err);
-          const rawMd = localSummarizer(text, format, level);
-          currentRawText = rawMd;
-          currentHtmlOutput = formatMarkdown(rawMd);
-          loadingState.classList.add('hidden');
-          resultContent.innerHTML = currentHtmlOutput;
-          resultContent.classList.remove('hidden');
-          outputActions.classList.remove('opacity-50', 'pointer-events-none');
-          showToast('Generated using local engine fallback.');
-        }
-      });
-
-      /* --- Study Chat Send Action --- */
       async function sendChatMessage() {
-        const query = chatInput.value.trim();
-        if (!query) return;
+        const text = chatInput.value.trim();
+        if (!text) return;
 
         chatInput.value = '';
         chatInput.style.height = 'auto';
 
-        let fullPrompt = query;
+        const history = loadChatHistory();
+        history.push({ role: 'user', content: text });
+        saveChatHistory(history);
+        renderChat();
+
+        const targetLang = langSelect.value === 'auto' ? detectBrowserLanguage() : langSelect.value;
+        const messages = [
+          { role: 'system', content: `You are an expert AI Study Partner. Help the user learn. Respond in language: "${targetLang}".` }
+        ];
+
         if (includeNotes.checked && sourceText.value.trim()) {
-          fullPrompt = `[ATTACHED STUDY MATERIAL]:\n${sourceText.value.trim()}\n\n[USER QUESTION]:\n${query}`;
+          messages.push({ role: 'user', content: `[ATTACHED STUDY MATERIAL]:\n${sourceText.value.trim()}` });
         }
 
-        appendToChat('user', query);
+        messages.push(...history.slice(-6));
 
         try {
-          const userKey = getStoredApiKey();
-          const headers = { 'Content-Type': 'application/json' };
-          if (userKey) headers['Authorization'] = `Bearer ${userKey}`;
-
-          const history = loadChatHistory().map(m => ({ role: m.role, content: m.content }));
-
-          const response = await fetch('/api/openai', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              mode: 'chat',
-              model: chatModel.value,
-              messages: history,
-              stream: false
-            })
-          });
-
-          if (!response.ok) throw new Error('API request failed');
-
-          const data = await response.json();
-          const reply = data.content || (data.choices && data.choices[0]?.message?.content) || 'Sorry, no response received.';
-          appendToChat('assistant', reply);
-
+          const reply = await requestAI(messages);
+          history.push({ role: 'assistant', content: reply });
+          saveChatHistory(history);
+          renderChat();
         } catch (err) {
-          appendToChat('assistant', 'Sorry, I could not process your request right now. Please check your API key or internet connection.');
+          showToast('Failed to connect to chat assistant.');
         }
       }
 
@@ -725,54 +664,26 @@
       /* --- Export Handlers --- */
       copyBtn.addEventListener('click', () => {
         if (!currentRawText) return;
-        navigator.clipboard.writeText(currentRawText)
-          .then(() => showToast('Copied notes to clipboard!'))
-          .catch(() => showToast('Failed to copy notes.'));
+        navigator.clipboard.writeText(currentRawText);
+        showToast('Notes copied to clipboard!');
       });
 
       downloadTxtBtn.addEventListener('click', () => {
         if (!currentRawText) return;
-        const blob = new Blob([currentRawText], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
+        const blob = new Blob([currentRawText], { type: 'text/plain' });
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `LeoJStudyLens_Notes_${new Date().toISOString().slice(0,10)}.txt`;
-        document.body.appendChild(a);
+        a.href = URL.createObjectURL(blob);
+        a.download = 'study-notes.txt';
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('Downloaded .TXT file!');
       });
 
       downloadHtmlBtn.addEventListener('click', () => {
-        if (!currentHtmlOutput) return;
-        const fullDoc = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>LeoJStudyLens AI — Study Notes</title>
-  <script src="https://cdn.tailwindcss.com"><\/script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>body { font-family: 'Inter', sans-serif; }</style>
-</head>
-<body class="bg-slate-50 text-slate-800 p-8 max-w-3xl mx-auto">
-  <div class="border-b pb-4 mb-6">
-    <h1 class="text-2xl font-bold text-indigo-600">LeoJStudyLens AI</h1>
-    <p class="text-xs text-slate-400">Generated Study Notes</p>
-  </div>
-  ${currentHtmlOutput}
-</body>
-</html>`;
-        const blob = new Blob([fullDoc], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
+        if (!currentRawText) return;
+        const blob = new Blob([`<!DOCTYPE html><html><body style="font-family:sans-serif;padding:2rem;max-width:800px;margin:0 auto;line-height:1.6;">${currentHtmlOutput}</body></html>`], { type: 'text/html' });
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `LeoJStudyLens_Notes_${new Date().toISOString().slice(0,10)}.html`;
-        document.body.appendChild(a);
+        a.href = URL.createObjectURL(blob);
+        a.download = 'study-notes.html';
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('Downloaded .HTML file!');
       });
     });
   </script>
